@@ -1,8 +1,8 @@
-# ReviewForge 改进路线图（待评审）
+# ReviewForge 改进路线图
 
 > 目标：按**性价比（影响力 ÷ 工作量）**依次推进；定位升级为**多语言**（C++ + TypeScript/Python/Go）。  
-> 当前基线：~3900 行 TS、43 源文件、41 单测；真实评测 Recall 87.5% / F1 82.4% / FP 0.67 per PR（3 个内部 C++ case，category-agnostic）。  
-> 状态：DRAFT — 评审通过后按 P0 → P6 执行。
+> 当前基线：~5k 行 TS、52 源文件、77 单测；真实评测 Recall 87.5% / F1 82.4% / FP 0.67 per PR（3 个内部 C++ case，category-agnostic）。  
+> 状态：**P0–P5 大部分已落地**（M1–M3 已交付）；剩余未完项见文末「剩余 roadmap」。
 
 工作量记号：**S** ≤ 半天 · **M** 1–2 天 · **L** 多天。影响力：**H/M/L**。
 
@@ -109,10 +109,24 @@ P1 是把"能跑"变成"真的准"的关键，且 tree-sitter 一举解决多语
 
 ---
 
-## 待你确认的开放问题
+## 已定决策（原"开放问题"，现已落地）
 
-1. **基准集语言配比**：C++ 为主 + 少量 TS/Python/Go 点缀，还是四语言均衡？（影响 P3.1 选哪些公开仓库的 fix commit）
-2. **静态分析优先级**：P2 先做 C++ compile DB，还是先做 TS/Python？
-3. **模型策略**：P4.3 分诊需要一个"廉价快模型"——用网关里的 `jan-nano`/`qwen3-30b` 做分诊、`qwen3-32b` 做深审，可以吗？
-4. **发布**：P6.3 是否真的抽成独立公开 repo（便于简历放链接），还是留在 mycode 下？
-5. **范围**：是否所有梯队都做到底，还是做到某个梯队（如 P3 评测严谨）就够简历用了？
+1. **基准集语言配比** —— **C++ 为主 + Go 补充 + 负样本**：公开子集为 spdlog C/C++ ×4、tidwall/gjson Go ×4、negative/clean ×2，另有内部 C++ 历史 case（不公开）。
+2. **静态分析优先级** —— **多语言适配器全部落地**：C++ → clang-tidy、TS → eslint、Python → ruff、Go → go vet，按语言路由。
+3. **分诊 / Judge 模型策略** —— 分诊与 LLM-as-Judge 均已实现且**可配置**：分诊走 `LLM_TRIAGE_MODEL`（留空＝全维度跑），Judge 走 `JUDGE_MODEL`（建议指向更强 / 不同家模型降同源偏差）。
+4. **发布** —— **已抽成独立公开 repo**（`github.com/kavinChan13/reviewforge`），可 `npm` 全局安装。
+5. **范围** —— **M1–M3 + P0–P5 大部分已交付**；评测严谨性（P3）已落地公开可复现子集。
+
+---
+
+## 剩余 roadmap（尚未完成）
+
+> 对应 README 路线图中未打勾项；按性价比可继续推进。
+
+| # | 项 | 现状 | 说明 |
+|---|---|---|---|
+| R1 | **结构化（function-calling）finding 输出**（P5.1） | 部分 | 现用宽松 `response_format: json_object` + 容错解析；尚未用 JSON-schema / tool 强约束 |
+| R2 | **更大规模多语言基准 + 置信区间**（P3.1） | 未做 | 当前 10 个公开 case；`metrics.ts` 有 mean±std，但无置信区间 |
+| R3 | **更丰富跨文件调用图 + 类型解析**（P1.2 增强） | 部分 | 已有 callers/callees；缺跨文件类型解析 |
+| R4 | **增量 PR-update 审查 + 托管 tracing**（P6 增强） | 未做 | 现为全量重审；trace 为本地 `jsonl`，非托管 |
+| R5 | **eval 回归门禁接入自动化 CI**（P5.3 增强） | 部分 | `--baseline` 门禁已实现；自身 CI 仅 typecheck + 单测，未接入 eval 门禁 |

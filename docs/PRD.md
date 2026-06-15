@@ -2,7 +2,7 @@
 
 > 项目代号：**ReviewForge**（"锻造/打磨代码评审"）  
 > 一句话：**面向 C++/系统代码的自主 AI 代码审查 Agent**  
-> 版本：v0.2（草案，待 review）· 文档状态：DRAFT，评审前不写代码  
+> 版本：v1.0 · 文档状态：已实现（M1–M3 均已交付，详见路线图与各文档）  
 > 关联文档：[ARCHITECTURE.md](./ARCHITECTURE.md) · [EVAL_PLAN.md](./EVAL_PLAN.md)
 
 ---

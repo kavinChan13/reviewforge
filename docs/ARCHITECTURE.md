@@ -1,6 +1,6 @@
 # ReviewForge 架构设计文档
 
-> 版本：v0.2（草案，待 review）  
+> 版本：v1.0（已实现，M1–M3 均已落地）  
 > 关联：[PRD.md](./PRD.md) · [EVAL_PLAN.md](./EVAL_PLAN.md)  
 > 设计参考：一个评判型代码审查 Capstone 设计、一个内部 RCA/调查型 Agent（子 agent/工具/RAG/记忆 工程结构）、一个 Claude Code 式 CLI（provider 抽象 + tool-calling loop + 子 agent 委派）
 
@@ -423,9 +423,11 @@ reviewforge/
 
 ---
 
-## 14. 待确认（编码前最后一轮）
+## 14. 已定决策（编码前确认，现已落地）
 
-1. 目录结构与模块划分是否 OK？
-2. 维度子 Agent 默认 6 个（正确性/并发/内存/安全/性能/可维护性测试），MVP 是否全开还是先开前 4 个（正确性/并发/内存/安全）？
-3. `.env.example` 我会按 §11 生成；你后续填真实端点即可——确认 provider 走 OpenAI 兼容。
-4. 评测基准的真实历史缺陷种子，放 `benchmarks/` 下什么格式更方便你提供？（见 EVAL_PLAN §2/§7）
+> 以下为编码前最后一轮确认的问题及其最终决策，均已在实现中落地，保留作为设计决策记录。
+
+1. **目录结构与模块划分** —— 采纳 §10 规划，`src/` 已按此实现（index / review / agent / memory / report / eval）。
+2. **维度子 Agent 数量** —— **6 个全开**（正确性 / 并发 / 内存 / 安全 / 性能 / 可维护性），见 `src/agent/subagents.ts`；可用 `--only` 或 `.reviewforge.json` 按需裁剪。
+3. **Provider 形态** —— 走 **OpenAI 兼容**抽象（`src/config.ts` / `src/providers/chat.ts`），`.env.example` 按 §11 生成，可指向 OpenAI / 内网网关 / Ollama。
+4. **评测种子格式** —— 采用「`仓库 + fix 提交 hash`」一键反推（`scripts/seed-from-commit.ts`），case 落 `benchmarks/cases/<id>/case.json`（格式见 `benchmarks/README.md`）。

@@ -1,6 +1,6 @@
 # ReviewForge 评测计划（Eval Plan）
 
-> 版本：v0.2（草案，待 review）  
+> 版本：v1.0（已实现，公开子集结果可复现）  
 > 关联：[PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)  
 > 实践 tech-notes **X12** `ai_eval.html`
 
@@ -75,11 +75,12 @@
 | **+多维子 Agent** | 完整状态图编排 | 维度分工提升深度缺陷召回 |
 | **+记忆/抑制** | 完整 + 长期记忆反馈闭环 | few-shot 提精确率、噪声下降 |
 
-**期望结论（待实测）**：
-- `+RAG` 相对 `Baseline-B` 误报显著下降；
-- `+静态分析融合` 相对 `+RAG` 召回提升、幻觉下降；
-- 完整 ReviewForge 相对 `Baseline-A`（clang-tidy）**额外检出语义/逻辑类缺陷**；
-- `+记忆` 在重复/同类缺陷上精确率随使用上升。
+**实测结论（公开子集，10 个 case，可复现，见 [`benchmarks/results-public/`](../benchmarks/results-public/)）**：
+- `+RAG / full` 相对 `B-llm-only` **recall 单调提升**（v2 40%→60%、v3 40%→50%），并保持 **100% 精确率 / 近 0 误报 / 100% 行号定位**；
+- 单次 LLM 运行方差较大（实测 recall ±19pt），可靠对比需 `--runs N` 多次取均值并固定缓存策略，单次消融的小差异落在噪声内；
+- 内部专有 C++ 历史 case（不可公开复现，仅定性参考）：调优后 Recall 87.5% / Precision 77.8% / F1 82.4% / FP 0.67/PR，相对未调优基线 F1 ×2.5、误报 ×11.5↓。
+
+> 注：测试环境未安装 clang-tidy 时，`+static` 配置实际等价于 `+rag`；装上 compile DB 后该列预期有显著提升。
 
 ---
 
@@ -112,8 +113,9 @@ benchmarks/* → eval/runner 跑各配置 → 收集 findings
 
 ---
 
-## 7. 待你确认
-1. 真实历史缺陷种子的**提供格式**：A) 直接给 `含bug提交hash` + `修复提交hash`（我从 git 抽 diff）；B) 给现成 patch 文件 + 缺陷位置/类别标注；C) 其它。哪种对你最省事？
-2. 种子的**仓库可访问性**：是公开仓库，还是需要我在你本地已 clone 的私有仓库上跑（脱敏）？
-3. LLM-as-Judge 用哪个模型？建议比审查模型更强的一档（或不同家），降同源偏差。
-4. 是否要把评测指标接入 CI 做回归门禁（建议 M3）。
+## 7. 已定决策（原"待确认"，现已落地）
+
+1. **真实种子提供格式** —— 采用**方案 A**：给 `仓库 + 修复提交 hash`，由 `scripts/seed-from-commit.ts` 自动从 git 抽 diff 并反推 ground truth。
+2. **仓库可访问性** —— **两类都用**：公开仓库（spdlog C++、tidwall/gjson Go）进公开基准集；内部专有 C++ 仅本地脱敏运行、不纳入公开仓库。
+3. **LLM-as-Judge 模型** —— 已实现，**可通过 `JUDGE_MODEL` 环境变量**指向更强 / 不同家的模型（降同源偏差）；默认回退到审查模型。
+4. **CI 回归门禁** —— 门禁**机制已实现**（`rf eval --baseline <report.json>`，回归即非零退出）；目前**尚未接入自身自动化 CI**（`.github/workflows/ci.yml` 仅跑 typecheck + 单测），自动化接入留作 roadmap。
