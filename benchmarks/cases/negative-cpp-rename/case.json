@@ -1,0 +1,8 @@
+{
+  "id": "negative-cpp-rename",
+  "description": "Pure local-variable rename (sum -> result); behavior unchanged.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "negative",
+  "groundTruth": []
+}

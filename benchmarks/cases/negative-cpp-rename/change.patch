@@ -1,0 +1,13 @@
+diff --git a/util.cpp b/util.cpp
+index 1111111..2222222 100644
+--- a/util.cpp
++++ b/util.cpp
+@@ -1,6 +1,6 @@
+ #include <vector>
+ 
+ int add(int a, int b) {
+-  int sum = a + b;
+-  return sum;
++  int result = a + b;
++  return result;
+ }

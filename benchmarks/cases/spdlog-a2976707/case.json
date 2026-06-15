@@ -1,0 +1,38 @@
+{
+  "id": "spdlog-a2976707",
+  "description": "Tcp client auto reconnect (#3595)",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "a2976707813e9f5e3d86568c6018b9dbeff6b43f",
+    "parentCommit": "bfde7d3711d5ad4e0fbc5d88f451025661900a8b",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\spdlog"
+  },
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 156,
+      "endLine": 162,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 165,
+      "endLine": 171,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 178,
+      "endLine": 184,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    }
+  ]
+}

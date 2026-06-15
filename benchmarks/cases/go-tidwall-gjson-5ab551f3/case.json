@@ -1,0 +1,38 @@
+{
+  "id": "go-tidwall-gjson-5ab551f3",
+  "description": "Add flag for disabling HTML escaping",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "5ab551f3ac05551c469e5f5ab26154a49f69afcf",
+    "parentCommit": "28d458b14c40df6321bba23bcb39579d468f5e97",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\go-tidwall-gjson"
+  },
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1917,
+      "endLine": 1922,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1945,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2552,
+      "endLine": 2558,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    }
+  ]
+}

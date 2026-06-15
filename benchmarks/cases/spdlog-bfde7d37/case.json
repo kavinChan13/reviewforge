@@ -1,0 +1,22 @@
+{
+  "id": "spdlog-bfde7d37",
+  "description": "Fix socket closure in tcp_client to prevent errors on invalid socket (#3594)",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "bfde7d3711d5ad4e0fbc5d88f451025661900a8b",
+    "parentCommit": "52e2454b617d20a9468419b12ed1d3de2ec53945",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\spdlog"
+  },
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 52,
+      "endLine": 59,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bfde7d37"
+    }
+  ]
+}

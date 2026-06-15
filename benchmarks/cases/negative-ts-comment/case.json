@@ -1,0 +1,8 @@
+{
+  "id": "negative-ts-comment",
+  "description": "Adds a clarifying comment only; no behavior change.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "negative",
+  "groundTruth": []
+}

@@ -1,0 +1,408 @@
+diff --git a/gjson.go b/gjson.go
+index e7e8d7e..53cbd23 100644
+--- a/gjson.go
++++ b/gjson.go
+@@ -645,9 +645,9 @@ func tostr(json string) (raw string, str string) {
+ 
+ // Exists returns true if value exists.
+ //
+-//	 if gjson.Get(json, "name.last").Exists(){
+-//			println("value exists")
+-//	 }
++//  if gjson.Get(json, "name.last").Exists(){
++//		println("value exists")
++//  }
+ func (t Result) Exists() bool {
+ 	return t.Type != Null || len(t.Raw) != 0
+ }
+@@ -661,6 +661,7 @@ func (t Result) Exists() bool {
+ //	nil, for JSON null
+ //	map[string]interface{}, for JSON objects
+ //	[]interface{}, for JSON arrays
++//
+ func (t Result) Value() interface{} {
+ 	if t.Type == String {
+ 		return t.Str
+@@ -825,28 +826,19 @@ func parseArrayPath(path string) (r arrayPathResult) {
+ }
+ 
+ // splitQuery takes a query and splits it into three parts:
+-//
+-//	path, op, middle, and right.
+-//
++//   path, op, middle, and right.
+ // So for this query:
+-//
+-//	#(first_name=="Murphy").last
+-//
++//   #(first_name=="Murphy").last
+ // Becomes
+-//
+-//	first_name   # path
+-//	=="Murphy"   # middle
+-//	.last        # right
+-//
++//   first_name   # path
++//   =="Murphy"   # middle
++//   .last        # right
+ // Or,
+-//
+-//	#(service_roles.#(=="one")).cap
+-//
++//   #(service_roles.#(=="one")).cap
+ // Becomes
+-//
+-//	service_roles.#(=="one")   # path
+-//	                           # middle
+-//	.cap                       # right
++//   service_roles.#(=="one")   # path
++//                              # middle
++//   .cap                       # right
+ func parseQuery(query string) (
+ 	path, op, value, remain string, i int, vesc, ok bool,
+ ) {
+@@ -1259,74 +1251,15 @@ func matchLimit(str, pattern string) bool {
+ 	return matched
+ }
+ 
+-func falseish(t Result) bool {
+-	switch t.Type {
+-	case Null:
+-		return true
+-	case False:
+-		return true
+-	case String:
+-		b, err := strconv.ParseBool(strings.ToLower(t.Str))
+-		if err != nil {
+-			return false
+-		}
+-		return !b
+-	case Number:
+-		return t.Num == 0
+-	default:
+-		return false
+-	}
+-}
+-
+-func trueish(t Result) bool {
+-	switch t.Type {
+-	case True:
+-		return true
+-	case String:
+-		b, err := strconv.ParseBool(strings.ToLower(t.Str))
+-		if err != nil {
+-			return false
+-		}
+-		return b
+-	case Number:
+-		return t.Num != 0
+-	default:
+-		return false
+-	}
+-}
+-
+-func nullish(t Result) bool {
+-	return t.Type == Null
+-}
+-
+ func queryMatches(rp *arrayPathResult, value Result) bool {
+ 	rpv := rp.query.value
+-	if len(rpv) > 0 {
+-		if rpv[0] == '~' {
+-			// convert to bool
+-			rpv = rpv[1:]
+-			var ish, ok bool
+-			switch rpv {
+-			case "*":
+-				ish, ok = value.Exists(), true
+-			case "null":
+-				ish, ok = nullish(value), true
+-			case "true":
+-				ish, ok = trueish(value), true
+-			case "false":
+-				ish, ok = falseish(value), true
+-			}
+-			if ok {
+-				rpv = "true"
+-				if ish {
+-					value = Result{Type: True}
+-				} else {
+-					value = Result{Type: False}
+-				}
+-			} else {
+-				rpv = ""
+-				value = Result{}
+-			}
++	if len(rpv) > 0 && rpv[0] == '~' {
++		// convert to bool
++		rpv = rpv[1:]
++		if value.Bool() {
++			value = Result{Type: True}
++		} else {
++			value = Result{Type: False}
+ 		}
+ 	}
+ 	if !value.Exists() {
+@@ -1985,23 +1918,23 @@ type parseContext struct {
+ // the '#' character.
+ // The dot and wildcard character can be escaped with '\'.
+ //
+-//	{
+-//	  "name": {"first": "Tom", "last": "Anderson"},
+-//	  "age":37,
+-//	  "children": ["Sara","Alex","Jack"],
+-//	  "friends": [
+-//	    {"first": "James", "last": "Murphy"},
+-//	    {"first": "Roger", "last": "Craig"}
+-//	  ]
+-//	}
+-//	"name.last"          >> "Anderson"
+-//	"age"                >> 37
+-//	"children"           >> ["Sara","Alex","Jack"]
+-//	"children.#"         >> 3
+-//	"children.1"         >> "Alex"
+-//	"child*.2"           >> "Jack"
+-//	"c?ildren.0"         >> "Sara"
+-//	"friends.#.first"    >> ["James","Roger"]
++//  {
++//    "name": {"first": "Tom", "last": "Anderson"},
++//    "age":37,
++//    "children": ["Sara","Alex","Jack"],
++//    "friends": [
++//      {"first": "James", "last": "Murphy"},
++//      {"first": "Roger", "last": "Craig"}
++//    ]
++//  }
++//  "name.last"          >> "Anderson"
++//  "age"                >> 37
++//  "children"           >> ["Sara","Alex","Jack"]
++//  "children.#"         >> 3
++//  "children.1"         >> "Alex"
++//  "child*.2"           >> "Jack"
++//  "c?ildren.0"         >> "Sara"
++//  "friends.#.first"    >> ["James","Roger"]
+ //
+ // This function expects that the json is well-formed, and does not validate.
+ // Invalid json will not panic, but it may return back unexpected results.
+@@ -2193,7 +2126,8 @@ func unescape(json string) string {
+ // The caseSensitive paramater is used when the tokens are Strings.
+ // The order when comparing two different type is:
+ //
+-//	Null < False < Number < String < True < JSON
++//  Null < False < Number < String < True < JSON
++//
+ func (t Result) Less(token Result, caseSensitive bool) bool {
+ 	if t.Type < token.Type {
+ 		return true
+@@ -2622,10 +2556,11 @@ func validnull(data []byte, i int) (outi int, ok bool) {
+ 
+ // Valid returns true if the input is valid json.
+ //
+-//	if !gjson.Valid(json) {
+-//		return errors.New("invalid json")
+-//	}
+-//	value := gjson.Get(json, "name.last")
++//  if !gjson.Valid(json) {
++//  	return errors.New("invalid json")
++//  }
++//  value := gjson.Get(json, "name.last")
++//
+ func Valid(json string) bool {
+ 	_, ok := validpayload(stringBytes(json), 0)
+ 	return ok
+@@ -2633,12 +2568,13 @@ func Valid(json string) bool {
+ 
+ // ValidBytes returns true if the input is valid json.
+ //
+-//	if !gjson.Valid(json) {
+-//		return errors.New("invalid json")
+-//	}
+-//	value := gjson.Get(json, "name.last")
++//  if !gjson.Valid(json) {
++//  	return errors.New("invalid json")
++//  }
++//  value := gjson.Get(json, "name.last")
+ //
+ // If working with bytes, this method preferred over ValidBytes(string(data))
++//
+ func ValidBytes(json []byte) bool {
+ 	_, ok := validpayload(json, 0)
+ 	return ok
+@@ -2912,13 +2848,9 @@ func modReverse(json, arg string) string {
+ }
+ 
+ // @flatten an array with child arrays.
+-//
+-//	[1,[2],[3,4],[5,[6,7]]] -> [1,2,3,4,5,[6,7]]
+-//
++//   [1,[2],[3,4],[5,[6,7]]] -> [1,2,3,4,5,[6,7]]
+ // The {"deep":true} arg can be provide for deep flattening.
+-//
+-//	[1,[2],[3,4],[5,[6,7]]] -> [1,2,3,4,5,6,7]
+-//
++//   [1,[2],[3,4],[5,[6,7]]] -> [1,2,3,4,5,6,7]
+ // The original json is returned when the json is not an array.
+ func modFlatten(json, arg string) string {
+ 	res := Parse(json)
+@@ -2963,8 +2895,7 @@ func modFlatten(json, arg string) string {
+ }
+ 
+ // @keys extracts the keys from an object.
+-//
+-//	{"first":"Tom","last":"Smith"} -> ["first","last"]
++//  {"first":"Tom","last":"Smith"} -> ["first","last"]
+ func modKeys(json, arg string) string {
+ 	v := Parse(json)
+ 	if !v.Exists() {
+@@ -2991,8 +2922,7 @@ func modKeys(json, arg string) string {
+ }
+ 
+ // @values extracts the values from an object.
+-//
+-//	{"first":"Tom","last":"Smith"} -> ["Tom","Smith"]
++//   {"first":"Tom","last":"Smith"} -> ["Tom","Smith"]
+ func modValues(json, arg string) string {
+ 	v := Parse(json)
+ 	if !v.Exists() {
+@@ -3017,17 +2947,11 @@ func modValues(json, arg string) string {
+ }
+ 
+ // @join multiple objects into a single object.
+-//
+-//	[{"first":"Tom"},{"last":"Smith"}] -> {"first","Tom","last":"Smith"}
+-//
++//   [{"first":"Tom"},{"last":"Smith"}] -> {"first","Tom","last":"Smith"}
+ // The arg can be "true" to specify that duplicate keys should be preserved.
+-//
+-//	[{"first":"Tom","age":37},{"age":41}] -> {"first","Tom","age":37,"age":41}
+-//
++//   [{"first":"Tom","age":37},{"age":41}] -> {"first","Tom","age":37,"age":41}
+ // Without preserved keys:
+-//
+-//	[{"first":"Tom","age":37},{"age":41}] -> {"first","Tom","age":41}
+-//
++//   [{"first":"Tom","age":37},{"age":41}] -> {"first","Tom","age":41}
+ // The original json is returned when the json is not an object.
+ func modJoin(json, arg string) string {
+ 	res := Parse(json)
+@@ -3100,8 +3024,7 @@ func modValid(json, arg string) string {
+ }
+ 
+ // @fromstr converts a string to json
+-//
+-//	"{\"id\":1023,\"name\":\"alert\"}" -> {"id":1023,"name":"alert"}
++//   "{\"id\":1023,\"name\":\"alert\"}" -> {"id":1023,"name":"alert"}
+ func modFromStr(json, arg string) string {
+ 	if !Valid(json) {
+ 		return ""
+@@ -3110,8 +3033,7 @@ func modFromStr(json, arg string) string {
+ }
+ 
+ // @tostr converts a string to json
+-//
+-//	{"id":1023,"name":"alert"} -> "{\"id\":1023,\"name\":\"alert\"}"
++//   {"id":1023,"name":"alert"} -> "{\"id\":1023,\"name\":\"alert\"}"
+ func modToStr(str, arg string) string {
+ 	return string(AppendJSONString(nil, str))
+ }
+@@ -3288,11 +3210,11 @@ func revSquash(json string) string {
+ // Paths returns the original GJSON paths for a Result where the Result came
+ // from a simple query path that returns an array, like:
+ //
+-//	gjson.Get(json, "friends.#.first")
++//    gjson.Get(json, "friends.#.first")
+ //
+ // The returned value will be in the form of a JSON array:
+ //
+-//	["friends.0.first","friends.1.first","friends.2.first"]
++//    ["friends.0.first","friends.1.first","friends.2.first"]
+ //
+ // The param 'json' must be the original JSON used when calling Get.
+ //
+@@ -3317,11 +3239,11 @@ func (t Result) Paths(json string) []string {
+ // Path returns the original GJSON path for a Result where the Result came
+ // from a simple path that returns a single value, like:
+ //
+-//	gjson.Get(json, "friends.#(last=Murphy)")
++//    gjson.Get(json, "friends.#(last=Murphy)")
+ //
+ // The returned value will be in the form of a JSON string:
+ //
+-//	"friends.0"
++//    "friends.0"
+ //
+ // The param 'json' must be the original JSON used when calling Get.
+ //
+diff --git a/gjson_test.go b/gjson_test.go
+index 1fabe95..77f6ce9 100644
+--- a/gjson_test.go
++++ b/gjson_test.go
+@@ -2129,10 +2129,10 @@ func TestEncodedQueryString(t *testing.T) {
+ 	assert(t, Get(json, `friends.#(last=="Murphy").age`).Int() == 47)
+ }
+ 
+-func TestTildeQueries(t *testing.T) {
++func TestBoolConvertQuery(t *testing.T) {
+ 	json := `{
+ 		"vals": [
+-			{ "a": 1, "b": "data" },
++			{ "a": 1, "b": true },
+ 			{ "a": 2, "b": true },
+ 			{ "a": 3, "b": false },
+ 			{ "a": 4, "b": "0" },
+@@ -2146,54 +2146,9 @@ func TestTildeQueries(t *testing.T) {
+ 		]
+ 	}`
+ 	trues := Get(json, `vals.#(b==~true)#.a`).Raw
+-	truesNOT := Get(json, `vals.#(b!=~true)#.a`).Raw
+ 	falses := Get(json, `vals.#(b==~false)#.a`).Raw
+-	falsesNOT := Get(json, `vals.#(b!=~false)#.a`).Raw
+-	nulls := Get(json, `vals.#(b==~null)#.a`).Raw
+-	nullsNOT := Get(json, `vals.#(b!=~null)#.a`).Raw
+-	exists := Get(json, `vals.#(b==~*)#.a`).Raw
+-	existsNOT := Get(json, `vals.#(b!=~*)#.a`).Raw
+-
+-	assert(t, trues == "[2,6,7,8]")
+-	assert(t, truesNOT == "[1,3,4,5,9,10,11]")
++	assert(t, trues == "[1,2,6,7,8]")
+ 	assert(t, falses == "[3,4,5,9,10,11]")
+-	assert(t, falsesNOT == "[1,2,6,7,8]")
+-	assert(t, nulls == "[10,11]")
+-	assert(t, nullsNOT == "[1,2,3,4,5,6,7,8,9]")
+-	assert(t, exists == "[1,2,3,4,5,6,7,8,9,10]")
+-	assert(t, existsNOT == "[11]")
+-	json = `{
+-		"vals": [
+-		  { "a": 1, "b": "something" },
+-		  { "a": 2, "b": "else" },
+-		  { "a": 3, "b": false },
+-		  { "a": 4, "b": "0" },
+-		  { "a": 5, "b": 0 },
+-		  { "a": 6, "b": "1" },
+-		  { "a": 7, "b": 1 },
+-		  { "a": 8, "b": "true" },
+-		  { "a": 9, "b": false },
+-		  { "a": 10, "b": null },
+-		  { "a": 11 }
+-		],
+-		"anything": "else"
+-	}`
+-	trues = Get(json, `vals.#(b==~true)#.a`).Raw
+-	truesNOT = Get(json, `vals.#(b!=~true)#.a`).Raw
+-	falses = Get(json, `vals.#(b==~false)#.a`).Raw
+-	falsesNOT = Get(json, `vals.#(b!=~false)#.a`).Raw
+-	nulls = Get(json, `vals.#(b==~null)#.a`).Raw
+-	nullsNOT = Get(json, `vals.#(b!=~null)#.a`).Raw
+-	exists = Get(json, `vals.#(b==~*)#.a`).Raw
+-	existsNOT = Get(json, `vals.#(b!=~*)#.a`).Raw
+-	assert(t, trues == "[6,7,8]")
+-	assert(t, truesNOT == "[1,2,3,4,5,9,10,11]")
+-	assert(t, falses == "[3,4,5,9,10,11]")
+-	assert(t, falsesNOT == "[1,2,6,7,8]")
+-	assert(t, nulls == "[10,11]")
+-	assert(t, nullsNOT == "[1,2,3,4,5,6,7,8,9]")
+-	assert(t, exists == "[1,2,3,4,5,6,7,8,9,10]")
+-	assert(t, existsNOT == "[11]")
+ }
+ 
+ func TestModifierDoubleQuotes(t *testing.T) {

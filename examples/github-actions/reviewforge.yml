@@ -1,0 +1,88 @@
+# ReviewForge — GitHub Actions template
+# Drop into `.github/workflows/reviewforge.yml` of the repo you want reviewed.
+#
+# Required repo secrets:
+#   LLM_API_KEY            (chat provider key; e.g. OpenAI key)
+# Optional repo secrets/vars (override defaults):
+#   LLM_BASE_URL           (default: https://api.openai.com/v1)
+#   LLM_MODEL              (default: gpt-4o-mini)
+#   EMBED_API_KEY / EMBED_BASE_URL / EMBED_MODEL  (enables semantic_search)
+
+name: ReviewForge
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write   # needed to post review comments
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so `--base` diff works
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clang-tidy (best-effort)
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+        continue-on-error: true
+
+      - name: Clone ReviewForge
+        run: git clone --depth 1 https://github.com/your-org/reviewforge.git $RUNNER_TEMP/reviewforge
+
+      - name: Install ReviewForge deps
+        working-directory: ${{ runner.temp }}/reviewforge
+        run: npm ci
+
+      - name: Build codebase index
+        working-directory: ${{ github.workspace }}
+        env:
+          LLM_BASE_URL:   ${{ vars.LLM_BASE_URL || 'https://api.openai.com/v1' }}
+          LLM_MODEL:      ${{ vars.LLM_MODEL   || 'gpt-4o-mini' }}
+          LLM_API_KEY:    ${{ secrets.LLM_API_KEY }}
+          EMBED_BASE_URL: ${{ vars.EMBED_BASE_URL }}
+          EMBED_API_KEY:  ${{ secrets.EMBED_API_KEY }}
+          EMBED_MODEL:    ${{ vars.EMBED_MODEL || 'text-embedding-3-small' }}
+        run: node $RUNNER_TEMP/reviewforge/bin/reviewforge.ts index
+
+      - name: Run review and post inline comments
+        working-directory: ${{ github.workspace }}
+        env:
+          LLM_BASE_URL:      ${{ vars.LLM_BASE_URL || 'https://api.openai.com/v1' }}
+          LLM_MODEL:         ${{ vars.LLM_MODEL   || 'gpt-4o-mini' }}
+          LLM_API_KEY:       ${{ secrets.LLM_API_KEY }}
+          EMBED_BASE_URL:    ${{ vars.EMBED_BASE_URL }}
+          EMBED_API_KEY:     ${{ secrets.EMBED_API_KEY }}
+          EMBED_MODEL:       ${{ vars.EMBED_MODEL || 'text-embedding-3-small' }}
+          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_PR_NUMBER:  ${{ github.event.pull_request.number }}
+        run: |
+          node $RUNNER_TEMP/reviewforge/bin/reviewforge.ts review \
+            --base origin/${{ github.base_ref }} \
+            --format all \
+            --out review-out \
+            --post github \
+            --fail-on critical
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: review-out/review.sarif
+        continue-on-error: true
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewforge-report
+          path: review-out

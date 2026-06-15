@@ -1,0 +1,22 @@
+{
+  "id": "spdlog-2e71fdf3",
+  "description": "Add systemd_namespace_sink for logging to specific systemd namespace (#3606)",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "2e71fdf3c1e8d6299b8129e402ab705e6fb494ba",
+    "parentCommit": "a2976707813e9f5e3d86568c6018b9dbeff6b43f",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\spdlog"
+  },
+  "groundTruth": [
+    {
+      "file": "include/spdlog/sinks/systemd_namespace_sink.h",
+      "line": 0,
+      "endLine": 0,
+      "category": "performance",
+      "severity": "medium",
+      "note": "Inverse of fix 2e71fdf3"
+    }
+  ]
+}

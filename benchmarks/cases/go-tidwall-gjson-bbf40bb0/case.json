@@ -1,0 +1,22 @@
+{
+  "id": "go-tidwall-gjson-bbf40bb0",
+  "description": "Fix backspace and form-feed for Go 1.22",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "bbf40bb0e4f47860677c7115b2eaa5b3413ce23e",
+    "parentCommit": "711c6fe9ecb7128e5ab309d7c2337a7ab2bc1b99",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\go-tidwall-gjson"
+  },
+  "groundTruth": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2592,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bbf40bb0"
+    }
+  ]
+}

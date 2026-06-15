@@ -1,0 +1,47 @@
+{
+  "name": "reviewforge",
+  "version": "0.1.0",
+  "description": "AI code review agent for C++/systems code — tree-sitter symbol graph + RAG + static-analysis fusion, multi-dimension state-graph orchestration with a verifier and feedback memory.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["code-review", "ai-agent", "llm", "cpp", "static-analysis", "rag", "tree-sitter", "sarif"],
+  "author": "Kavin Chan",
+  "repository": { "type": "git", "url": "https://github.com/kavinChan13/reviewforge.git" },
+  "bin": {
+    "reviewforge": "bin/reviewforge.cjs",
+    "rf": "bin/reviewforge.cjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "rf": "tsx bin/reviewforge.ts",
+    "index": "tsx bin/reviewforge.ts index",
+    "review": "tsx bin/reviewforge.ts review",
+    "doctor": "tsx bin/reviewforge.ts doctor",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "execa": "^9.5.1",
+    "picocolors": "^1.1.1",
+    "tree-sitter-wasms": "^0.1.13",
+    "tsx": "^4.19.2",
+    "web-tree-sitter": "^0.22.6",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

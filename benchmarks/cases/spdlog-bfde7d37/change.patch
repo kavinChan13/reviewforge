@@ -1,0 +1,17 @@
+diff --git a/include/spdlog/details/tcp_client-windows.h b/include/spdlog/details/tcp_client-windows.h
+index 7c5f4478..956f9f9b 100644
+--- a/include/spdlog/details/tcp_client-windows.h
++++ b/include/spdlog/details/tcp_client-windows.h
+@@ -52,10 +52,8 @@ public:
+     bool is_connected() const { return socket_ != INVALID_SOCKET; }
+ 
+     void close() {
+-        if (socket_ != INVALID_SOCKET) {
+-            ::closesocket(socket_);
+-            socket_ = INVALID_SOCKET;
+-        }
++        ::closesocket(socket_);
++        socket_ = INVALID_SOCKET;
+     }
+ 
+     SOCKET fd() const { return socket_; }

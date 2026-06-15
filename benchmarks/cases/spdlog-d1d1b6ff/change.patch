@@ -1,0 +1,12 @@
+diff --git a/include/spdlog/sinks/systemd_namespace_sink.h b/include/spdlog/sinks/systemd_namespace_sink.h
+index 374db243..518f0139 100644
+--- a/include/spdlog/sinks/systemd_namespace_sink.h
++++ b/include/spdlog/sinks/systemd_namespace_sink.h
+@@ -8,7 +8,6 @@
+ #include <spdlog/sinks/base_sink.h>
+ 
+ #include <array>
+-#include <unistd.h>
+ #include <systemd/sd-journal.h>
+ #include <systemd/sd-daemon.h>
+ 

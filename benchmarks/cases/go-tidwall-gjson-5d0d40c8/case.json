@@ -1,0 +1,38 @@
+{
+  "id": "go-tidwall-gjson-5d0d40c8",
+  "description": "chore: fix some typos in comments",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "5d0d40c89f4c6e3c4370788873210e8b1f1a5ecf",
+    "parentCommit": "bbf40bb0e4f47860677c7115b2eaa5b3413ce23e",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\go-tidwall-gjson"
+  },
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1252,
+      "endLine": 1258,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2194,
+      "endLine": 2200,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3353,
+      "endLine": 3359,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    }
+  ]
+}

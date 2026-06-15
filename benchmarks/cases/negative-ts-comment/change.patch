@@ -1,0 +1,10 @@
+diff --git a/format.ts b/format.ts
+index 1111111..2222222 100644
+--- a/format.ts
++++ b/format.ts
+@@ -1,4 +1,5 @@
+ export function formatName(first: string, last: string): string {
++  // Combine first and last name with a single space separator.
+   const full = `${first} ${last}`;
+   return full.trim();
+ }

@@ -1,0 +1,22 @@
+{
+  "id": "spdlog-d1d1b6ff",
+  "description": "Add missing `#include <unistd.h>` in `systemd_namespace_sink.h` (#3621)",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "real",
+  "seed": {
+    "fixCommit": "d1d1b6ffabc0d41d6c0d8a845e85e0b810e9e983",
+    "parentCommit": "13680fa0c0dd9cd21af40974fc323e597fbe8659",
+    "source": "C:\\N-21HEPF56M0GR-Data\\kachan\\Desktop\\code\\mycode\\reviewforge\\.reviewforge-seeds\\spdlog"
+  },
+  "groundTruth": [
+    {
+      "file": "include/spdlog/sinks/systemd_namespace_sink.h",
+      "line": 8,
+      "endLine": 13,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix d1d1b6ff"
+    }
+  ]
+}

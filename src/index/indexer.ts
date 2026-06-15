@@ -1,0 +1,158 @@
+import { execa } from "execa";
+import fs from "node:fs/promises";
+import type { Config } from "../config.js";
+import { embedConfigured } from "../config.js";
+import { OpenAICompatEmbeddingProvider } from "../providers/embeddings.js";
+import { chunkFile } from "./chunker.js";
+import { extractSymbols } from "./parser.js";
+import { scanRepo } from "./scanner.js";
+import { buildSymbolGraph, type ReferenceSite } from "./symbol_graph.js";
+import { extractReferencesTreeSitter } from "./treesitter.js";
+import { loadIndexBundle, saveIndex } from "./store.js";
+import type { CodeChunk, CodeSymbol, IndexMeta, VectorRecord } from "./types.js";
+
+export interface IndexResult {
+  files: number;
+  symbols: number;
+  chunks: number;
+  vectors: number;
+  reusedFiles: number;
+}
+
+async function currentCommit(repoRoot: string): Promise<string | null> {
+  try {
+    const { stdout } = await execa("git", ["rev-parse", "HEAD"], { cwd: repoRoot });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+const EMBED_BATCH = 64;
+
+export async function buildIndex(
+  cfg: Config,
+  log: (msg: string) => void = () => {},
+): Promise<IndexResult> {
+  log("Scanning repository...");
+  const files = await scanRepo(cfg.repoRoot);
+  log(`Found ${files.length} source files.`);
+
+  // 0.4 — incremental: reuse chunks/vectors for files whose content hash is unchanged.
+  const canEmbed = embedConfigured(cfg);
+  const old = await loadIndexBundle(cfg.dataDirAbs);
+  const reusable =
+    old &&
+    old.meta.embedModel === cfg.embedModel &&
+    old.meta.embedDim === cfg.embedDim;
+  const oldChunksByFile = new Map<string, CodeChunk[]>();
+  const oldVectorById = new Map<string, VectorRecord>();
+  if (reusable && old) {
+    for (const c of old.chunks) {
+      const arr = oldChunksByFile.get(c.file);
+      if (arr) arr.push(c);
+      else oldChunksByFile.set(c.file, [c]);
+    }
+    for (const v of old.vectors) oldVectorById.set(v.id, v);
+  }
+
+  const allSymbols: CodeSymbol[] = [];
+  const allChunks: CodeChunk[] = [];
+  const fileHashes: Record<string, string> = {};
+  const reusedVectors: VectorRecord[] = [];
+  const chunksToEmbed: CodeChunk[] = [];
+  const references: Record<string, ReferenceSite[]> = {};
+  const MAX_REFS_PER_NAME = 50;
+  let reusedFiles = 0;
+
+  const addRefs = async (file: string, text: string, lang: string) => {
+    const sites = await extractReferencesTreeSitter(text, lang);
+    if (!sites) return;
+    for (const s of sites) {
+      const arr = (references[s.callee] ??= []);
+      if (arr.length < MAX_REFS_PER_NAME) arr.push({ file, line: s.line });
+    }
+  };
+
+  for (const f of files) {
+    fileHashes[f.file] = f.hash;
+    const text = await fs.readFile(f.abs, "utf8").catch(() => "");
+    if (!text) continue;
+
+    // Symbols + references rebuilt every time (parsing is cheap vs embeddings).
+    const symbols = await extractSymbols(f.file, text, f.lang);
+    allSymbols.push(...symbols);
+    await addRefs(f.file, text, f.lang);
+
+    const unchanged = reusable && old?.meta.fileHashes[f.file] === f.hash;
+    if (unchanged && oldChunksByFile.has(f.file)) {
+      const chunks = oldChunksByFile.get(f.file)!;
+      allChunks.push(...chunks);
+      for (const c of chunks) {
+        const v = oldVectorById.get(c.id);
+        if (v) reusedVectors.push(v);
+      }
+      reusedFiles++;
+      continue;
+    }
+
+    const chunks = chunkFile(f.file, text, f.lang, symbols);
+    allChunks.push(...chunks);
+    chunksToEmbed.push(...chunks);
+  }
+  log(
+    `Extracted ${allSymbols.length} symbols, ${allChunks.length} chunks ` +
+      `(${reusedFiles} file(s) reused, ${chunksToEmbed.length} chunk(s) need embedding).`,
+  );
+
+  const symbolGraph = buildSymbolGraph(allSymbols, references);
+
+  let vectors: VectorRecord[] = [...reusedVectors];
+  if (canEmbed) {
+    if (chunksToEmbed.length > 0) {
+      log(`Embedding ${chunksToEmbed.length} chunk(s) with ${cfg.embedModel}...`);
+      const provider = new OpenAICompatEmbeddingProvider(cfg);
+      for (let i = 0; i < chunksToEmbed.length; i += EMBED_BATCH) {
+        const batch = chunksToEmbed.slice(i, i + EMBED_BATCH);
+        const embedded = await provider.embed(batch.map((c) => c.text));
+        for (let j = 0; j < batch.length; j++) {
+          vectors.push({ id: batch[j].id, vector: embedded[j] });
+        }
+        log(`  embedded ${Math.min(i + EMBED_BATCH, chunksToEmbed.length)}/${chunksToEmbed.length}`);
+      }
+    } else {
+      log("All files unchanged — reused existing embeddings.");
+    }
+  } else {
+    vectors = [];
+    log(
+      "Embedding skipped (no embed provider configured). " +
+        "Symbol graph + keyword search still available; set EMBED_* to enable semantic_search.",
+    );
+  }
+
+  const meta: IndexMeta = {
+    embedModel: cfg.embedModel,
+    embedDim: cfg.embedDim,
+    commit: await currentCommit(cfg.repoRoot),
+    builtAt: new Date().toISOString(),
+    fileHashes,
+    chunkCount: allChunks.length,
+    hasVectors: vectors.length > 0,
+  };
+
+  await saveIndex(cfg.dataDirAbs, {
+    meta,
+    chunks: allChunks,
+    symbolGraph,
+    vectors,
+  });
+
+  return {
+    files: files.length,
+    symbols: allSymbols.length,
+    chunks: allChunks.length,
+    vectors: vectors.length,
+    reusedFiles,
+  };
+}
