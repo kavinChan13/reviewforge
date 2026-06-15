@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { cosineSimilarity } from "../providers/embeddings.js";
+import { writeFileAtomic } from "../util/fs.js";
 import { SymbolGraph, type SymbolGraphData } from "./symbol_graph.js";
 import type { CodeChunk, IndexMeta, VectorRecord } from "./types.js";
 
@@ -18,20 +19,11 @@ export interface IndexBundle {
 export async function saveIndex(dataDir: string, bundle: IndexBundle): Promise<void> {
   const dir = indexDir(dataDir);
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(
-    path.join(dir, "meta.json"),
-    JSON.stringify(bundle.meta, null, 2),
-  );
-  await fs.writeFile(
-    path.join(dir, "chunks.json"),
-    JSON.stringify(bundle.chunks),
-  );
-  await fs.writeFile(
-    path.join(dir, "symbols.json"),
-    JSON.stringify(bundle.symbolGraph),
-  );
+  await writeFileAtomic(path.join(dir, "meta.json"), JSON.stringify(bundle.meta, null, 2));
+  await writeFileAtomic(path.join(dir, "chunks.json"), JSON.stringify(bundle.chunks));
+  await writeFileAtomic(path.join(dir, "symbols.json"), JSON.stringify(bundle.symbolGraph));
   const ndjson = bundle.vectors.map((v) => JSON.stringify(v)).join("\n");
-  await fs.writeFile(path.join(dir, "vectors.ndjson"), ndjson);
+  await writeFileAtomic(path.join(dir, "vectors.ndjson"), ndjson);
 }
 
 export async function loadIndexBundle(dataDir: string): Promise<IndexBundle | null> {

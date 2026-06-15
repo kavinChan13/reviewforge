@@ -1,0 +1,103 @@
+{
+  "caseId": "spdlog-a2976707",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "spdlog-a2976707",
+    "labelSource": "real",
+    "totalFindings": 3,
+    "totalGroundTruth": 3,
+    "language": "c",
+    "truePositives": 1,
+    "falsePositives": 2,
+    "falseNegatives": 2,
+    "localized": 1,
+    "matchedFindingIds": [
+      "eb5fcc36ad8a"
+    ]
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 157,
+      "endLine": 177,
+      "severity": "critical",
+      "title": "Multiple WSACleanup calls in error paths",
+      "rationale": "WSACleanup must be called exactly once per WSAStartup. The diff adds WSACleanup in three error paths (getaddrinfo failure, socket creation failure, connect failure), which can lead to multiple calls if the function is called multiple times or if multiple errors occur. This violates Winsock API contract and causes undefined behavior (e.g., crashes on second call).",
+      "suggestion": "Remove WSACleanup from all error paths. Ensure WSACleanup is called exactly once in the destructor (not in error handling).",
+      "suggestedPatch": "Remove all three WSACleanup() calls from error paths.",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "guideline",
+          "ref": "Winsock API documentation: WSACleanup must be called exactly once for each WSAStartup"
+        }
+      ],
+      "id": "eb5fcc36ad8a",
+      "category": "correctness"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 166,
+      "endLine": 166,
+      "severity": "critical",
+      "title": "Multiple WSACleanup() calls in error paths",
+      "rationale": "WSACleanup() must be called exactly once per WSAStartup. The diff adds WSACleanup() in socket creation error path, which will be called multiple times if multiple address resolutions fail (due to 'continue' in loop).",
+      "suggestion": "Remove WSACleanup() from all error paths and ensure cleanup is handled once (e.g., in destructor or after loop)",
+      "suggestedPatch": "Remove the three added WSACleanup() lines",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup"
+        }
+      ],
+      "id": "96d6c23c87bf",
+      "category": "memory"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 179,
+      "endLine": 179,
+      "severity": "critical",
+      "title": "Multiple WSACleanup() calls in error paths",
+      "rationale": "WSACleanup() must be called exactly once per WSAStartup. The diff adds WSACleanup() in final connect failure path, which will be called multiple times if all addresses fail (after previous WSACleanup() calls in loop).",
+      "suggestion": "Remove WSACleanup() from all error paths and ensure cleanup is handled once (e.g., in destructor or after loop)",
+      "suggestedPatch": "Remove the three added WSACleanup() lines",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup"
+        }
+      ],
+      "id": "8f3f3a28f6ba",
+      "category": "memory"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 156,
+      "endLine": 162,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 165,
+      "endLine": 171,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 178,
+      "endLine": 184,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    }
+  ]
+}

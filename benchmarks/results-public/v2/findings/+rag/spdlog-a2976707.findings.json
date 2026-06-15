@@ -1,0 +1,105 @@
+{
+  "caseId": "spdlog-a2976707",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "spdlog-a2976707",
+    "labelSource": "real",
+    "totalFindings": 3,
+    "totalGroundTruth": 3,
+    "language": "c",
+    "truePositives": 0,
+    "falsePositives": 3,
+    "falseNegatives": 3,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 159,
+      "endLine": 178,
+      "severity": "critical",
+      "title": "Incorrect WSACleanup() usage in error paths",
+      "rationale": "WSACleanup() is called multiple times in error paths (lines 159, 168, 177), violating Winsock API requirements that WSACleanup() must be called exactly once per WSAStartup() call. This will cause subsequent WSACleanup() calls to fail (return -1) and crash the application on second invocation.",
+      "suggestion": "Remove WSACleanup() from error paths; ensure WSACleanup() is called only once in destructor",
+      "suggestedPatch": "Remove lines 159, 168, and 177 (WSACleanup() calls in error paths)",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "guideline",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup()"
+        },
+        {
+          "type": "code",
+          "ref": "Lines 159, 168, 177 in diff"
+        }
+      ],
+      "id": "802066f35718",
+      "category": "concurrency"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 166,
+      "endLine": 166,
+      "severity": "critical",
+      "title": "Multiple WSACleanup() calls in error paths",
+      "rationale": "WSACleanup() must be called exactly once per WSAStartup. The diff adds WSACleanup() in socket creation error path, which will be called multiple times if multiple address resolutions fail (due to 'continue' in loop).",
+      "suggestion": "Remove WSACleanup() from all error paths and ensure cleanup is handled once (e.g., in destructor or after loop)",
+      "suggestedPatch": "Remove the three added WSACleanup() lines",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup"
+        }
+      ],
+      "id": "96d6c23c87bf",
+      "category": "memory"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 179,
+      "endLine": 179,
+      "severity": "critical",
+      "title": "Multiple WSACleanup() calls in error paths",
+      "rationale": "WSACleanup() must be called exactly once per WSAStartup. The diff adds WSACleanup() in final connect failure path, which will be called multiple times if all addresses fail (after previous WSACleanup() calls in loop).",
+      "suggestion": "Remove WSACleanup() from all error paths and ensure cleanup is handled once (e.g., in destructor or after loop)",
+      "suggestedPatch": "Remove the three added WSACleanup() lines",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup"
+        }
+      ],
+      "id": "8f3f3a28f6ba",
+      "category": "memory"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 156,
+      "endLine": 162,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 165,
+      "endLine": 171,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 178,
+      "endLine": 184,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    }
+  ]
+}

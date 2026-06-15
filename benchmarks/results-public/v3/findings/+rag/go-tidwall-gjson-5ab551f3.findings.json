@@ -1,0 +1,67 @@
+{
+  "caseId": "go-tidwall-gjson-5ab551f3",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-5ab551f3",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 3,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 2,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1942,
+      "severity": "high",
+      "title": "Missing HTML character escaping in JSON output",
+      "rationale": "The diff removes code that escaped '<', '>', and '&' in JSON output (untrusted input source: string s passed to AppendJSONString). This prevents XSS if JSON is embedded in HTML without additional escaping. The standard json.Encoder escapes these by default (SetEscapeHTML=true), but the custom function now never escapes them, deviating from expected behavior.",
+      "suggestion": "Reintroduce HTML character escaping for '<', '>', '&' when mimicking standard JSON encoder behavior",
+      "suggestedPatch": "        } else if s[i] == '>' || s[i] == '<' || s[i] == '&' {\n            dst = append(dst, '\\', 'u')\n            dst = appendHex16(dst, uint16(s[i]))\n        }",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Go standard library json.Encoder.SetEscapeHTML defaults to true"
+        },
+        {
+          "type": "guideline",
+          "ref": "OWASP XSS Prevention Cheat Sheet: Escape HTML special characters in context"
+        }
+      ],
+      "id": "a17c7dd01978",
+      "category": "security"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1917,
+      "endLine": 1922,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1945,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2552,
+      "endLine": 2558,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "caseId": "spdlog-2e71fdf3",
+  "ablation": "full",
+  "metrics": {
+    "caseId": "spdlog-2e71fdf3",
+    "labelSource": "real",
+    "totalFindings": 0,
+    "totalGroundTruth": 1,
+    "language": "c",
+    "truePositives": 0,
+    "falsePositives": 0,
+    "falseNegatives": 1,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/sinks/systemd_namespace_sink.h",
+      "line": 0,
+      "endLine": 0,
+      "category": "performance",
+      "severity": "medium",
+      "note": "Inverse of fix 2e71fdf3"
+    }
+  ]
+}

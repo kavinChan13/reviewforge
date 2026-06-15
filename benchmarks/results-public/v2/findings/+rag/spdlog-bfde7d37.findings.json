@@ -1,0 +1,51 @@
+{
+  "caseId": "spdlog-bfde7d37",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "spdlog-bfde7d37",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "c",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 1,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 54,
+      "endLine": 55,
+      "severity": "critical",
+      "title": "Unconditional closesocket on invalid socket handle",
+      "rationale": "Calling ::closesocket with socket_ == INVALID_SOCKET (per Windows API) is undefined behavior. The diff removed the necessary validity check present in the original code, risking undefined behavior when socket_ is already closed.",
+      "suggestion": "Restore the socket validity check before calling closesocket",
+      "suggestedPatch": "        if (socket_ != INVALID_SOCKET) {\n            ::closesocket(socket_);\n            socket_ = INVALID_SOCKET;\n        }",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Windows API documentation: 'The socket handle must be valid' for closesocket"
+        },
+        {
+          "type": "memory",
+          "ref": "Original code contained necessary validity check (line 52-53 in diff)"
+        }
+      ],
+      "id": "7e075f6bf634",
+      "category": "memory"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 52,
+      "endLine": 59,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bfde7d37"
+    }
+  ]
+}

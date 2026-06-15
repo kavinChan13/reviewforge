@@ -1,0 +1,47 @@
+{
+  "caseId": "spdlog-bfde7d37",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "spdlog-bfde7d37",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "c",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 1,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 55,
+      "endLine": 55,
+      "severity": "critical",
+      "title": "Invalid socket handle passed to closesocket",
+      "rationale": "Calling ::closesocket(socket_) when socket_ is already INVALID_SOCKET violates Windows API contract (per MSDN: 'The socket handle must be valid'). The diff removed the safety check that previously prevented this.",
+      "suggestion": "Restore the socket validity check before calling closesocket",
+      "suggestedPatch": "        if (socket_ != INVALID_SOCKET) {\n            ::closesocket(socket_);\n            socket_ = INVALID_SOCKET;\n        }",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "MSDN: closesocket() requires valid socket handle"
+        }
+      ],
+      "id": "321d71095d5e",
+      "category": "memory"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 52,
+      "endLine": 59,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bfde7d37"
+    }
+  ]
+}

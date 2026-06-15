@@ -1,0 +1,187 @@
+{
+  "caseId": "go-tidwall-gjson-8d2c36ff",
+  "ablation": "full",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-8d2c36ff",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 18,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 2,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1259,
+      "endLine": 1273,
+      "severity": "high",
+      "title": "Regression in ~ operator handling",
+      "rationale": "The implementation of the ~ operator was simplified to only handle ~true and ~false, but the documentation and test coverage do not reflect this change. The old implementation supported ~*, ~null, ~true, and ~false, but the new implementation only supports ~true and ~false. The test cases only test the new behavior, not the removed behavior, which is now broken.",
+      "suggestion": "Restore support for ~* and ~null, or update the documentation to reflect the new behavior and add tests for the removed functionality.",
+      "suggestedPatch": "Revert the change to queryMatches to restore the old behavior, or update the documentation and add tests for the new behavior.",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson.go:1259-1273"
+        },
+        {
+          "type": "guideline",
+          "ref": "Test coverage should match the changed behavior"
+        }
+      ],
+      "id": "5993970dec54",
+      "category": "maintainability"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 645,
+      "endLine": 653,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 661,
+      "endLine": 667,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 826,
+      "endLine": 844,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1251,
+      "endLine": 1265,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1918,
+      "endLine": 1940,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2126,
+      "endLine": 2133,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2556,
+      "endLine": 2566,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2568,
+      "endLine": 2580,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2848,
+      "endLine": 2856,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2895,
+      "endLine": 2901,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2922,
+      "endLine": 2928,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2947,
+      "endLine": 2957,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3024,
+      "endLine": 3030,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3033,
+      "endLine": 3039,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3210,
+      "endLine": 3220,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3239,
+      "endLine": 3249,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2129,
+      "endLine": 2138,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2146,
+      "endLine": 2154,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    }
+  ]
+}

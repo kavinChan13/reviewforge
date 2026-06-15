@@ -1,0 +1,69 @@
+{
+  "caseId": "go-tidwall-gjson-5ab551f3",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-5ab551f3",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 3,
+    "language": "go",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 2,
+    "localized": 1,
+    "matchedFindingIds": [
+      "005c4eb45567"
+    ]
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1942,
+      "severity": "medium",
+      "title": "Missing HTML character escaping in JSON string",
+      "rationale": "The diff removed the code that escapes '>', '<', and '&' characters in JSON strings (lines 1940-1942). These characters must be escaped in JSON for HTML safety (per Go's standard json.Encoder behavior), but the removed code was the only mechanism for this. The test now incorrectly disables this behavior (SetEscapeHTML(false)), but the function itself no longer provides the required escaping.",
+      "suggestion": "Re-add the HTML character escaping logic to match standard JSON encoder behavior",
+      "suggestedPatch": "        } else if s[i] == '>' || s[i] == '<' || s[i] == '&' {\n            dst = append(dst, '\\', 'u')\n            dst = appendHex16(dst, uint16(s[i]))\n        }",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Go's json.Encoder escapes '<', '>', '&' by default when SetEscapeHTML(true)"
+        },
+        {
+          "type": "guideline",
+          "ref": "JSON standard requires escaping for HTML safety in embedded contexts"
+        }
+      ],
+      "id": "005c4eb45567",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1917,
+      "endLine": 1922,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1945,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2552,
+      "endLine": 2558,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "caseId": "go-tidwall-gjson-bbf40bb0",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-bbf40bb0",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "go",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 1,
+    "matchedFindingIds": [
+      "21dbfc21d8b9"
+    ]
+  },
+  "findings": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2582,
+      "severity": "high",
+      "title": "Test runs with invalid JSON string on older Go versions",
+      "rationale": "The diff removed the version check that ensured Go 1.22+ correctly encodes \\b and \\f. Now the test runs unconditionally with string \"\\b\\f\" (containing unescaped control characters), which is invalid JSON. This causes JSON parsing failures in testJSONString on Go versions <1.22, breaking the test suite.",
+      "suggestion": "Reintroduce the version check to only run the test when Go's JSON encoder correctly escapes control characters",
+      "suggestedPatch": "data, _ := json.Marshal(\"\\b\\f\")\nif (string(data) == \"\\\"\\\\b\\\\f\\\"\") {\n    testJSONString(t, \"\\b\\f\")\n}",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson_test.go:2578-2582 (diff)"
+        },
+        {
+          "type": "static_analysis",
+          "ref": "JSON control characters must be escaped in valid JSON"
+        }
+      ],
+      "id": "21dbfc21d8b9",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2592,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bbf40bb0"
+    }
+  ]
+}

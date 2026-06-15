@@ -1,0 +1,63 @@
+{
+  "caseId": "go-tidwall-gjson-5ab551f3",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-5ab551f3",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 3,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 3,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1945,
+      "severity": "critical",
+      "title": "Missing HTML character escaping in JSON output leading to XSS",
+      "rationale": "The diff removes the condition that escapes '<', '>', and '&' in JSON strings, allowing these characters to be output as-is. If the JSON is embedded in HTML without additional escaping (e.g., in a script tag), this can lead to XSS attacks where malicious scripts execute.",
+      "suggestion": "Restore the HTML character escaping condition in AppendJSONString or ensure JSON encoder escapes HTML characters (SetEscapeHTML(true)).",
+      "suggestedPatch": "        } else if !DisableEscapeHTML &&\n            (s[i] == '>' || s[i] == '<' || s[i] == '&') {\n            dst = append(dst, '\\', 'u')\n            dst = appendHex16(dst, uint16(s[i]))\n        }",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "type": "guideline",
+          "ref": "JSON standard requires escaping of '<', '>', and '&' to prevent XSS when embedded in HTML"
+        }
+      ],
+      "id": "da790d2a99ad",
+      "category": "security"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1917,
+      "endLine": 1922,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1940,
+      "endLine": 1945,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2552,
+      "endLine": 2558,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5ab551f3"
+    }
+  ]
+}

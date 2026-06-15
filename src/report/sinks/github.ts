@@ -1,5 +1,11 @@
+import { fetchWithRetry } from "../../providers/http.js";
 import { SEVERITIES, severityRank, type Finding, type Severity } from "../finding.js";
 import { type PostResult, type ReviewSink, ReviewSinkError, type SinkContext } from "./types.js";
+
+/** GitHub rejects an entire review POST if it carries too many comments; cap and overflow the rest to the summary. */
+const MAX_INLINE_COMMENTS = 50;
+/** GitHub comment bodies are limited (~65535 chars); keep a safe margin. */
+const MAX_COMMENT_CHARS = 60000;
 
 export interface GitHubSinkConfig {
   /** Format: "owner/repo". */
@@ -65,7 +71,10 @@ function inlineBody(f: Finding): string {
   }
   parts.push("");
   parts.push(`_<sub>Posted by ReviewForge · finding id: \`${f.id}\`</sub>_`);
-  return parts.join("\n");
+  const body = parts.join("\n");
+  return body.length > MAX_COMMENT_CHARS
+    ? body.slice(0, MAX_COMMENT_CHARS) + "\n\n_…comment truncated._"
+    : body;
 }
 
 export class GitHubReviewSink implements ReviewSink {
@@ -74,17 +83,20 @@ export class GitHubReviewSink implements ReviewSink {
 
   private async request(method: string, urlPath: string, body?: unknown): Promise<any> {
     const url = `${this.cfg.apiUrl.replace(/\/$/, "")}${urlPath}`;
-    const res = await fetch(url, {
-      method,
-      headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        Authorization: `Bearer ${this.cfg.token}`,
-        "Content-Type": "application/json",
+    const res = await fetchWithRetry(
+      url,
+      {
+        method,
+        headers: {
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          Authorization: `Bearer ${this.cfg.token}`,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
       },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(60_000),
-    });
+      { timeoutMs: 60_000, retries: 3 },
+    );
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new ReviewSinkError(
@@ -239,6 +251,18 @@ export class GitHubReviewSink implements ReviewSink {
     if (overflow.length > 0) {
       log(`${overflow.length} finding(s) not on diff lines — folding into summary.`);
       result.warnings.push(`${overflow.length} finding(s) referenced lines outside the diff`);
+    }
+
+    // Cap inline comments so a huge review doesn't get rejected wholesale; the
+    // rest are folded into the summary, most severe first.
+    if (inline.length > MAX_INLINE_COMMENTS) {
+      inline.sort(
+        (a, b) => severityRank(a.severity) - severityRank(b.severity) || b.confidence - a.confidence,
+      );
+      const excess = inline.splice(MAX_INLINE_COMMENTS);
+      overflow.push(...excess);
+      log(`Capping inline comments at ${MAX_INLINE_COMMENTS}; folding ${excess.length} into summary.`);
+      result.warnings.push(`${excess.length} finding(s) exceeded the inline-comment cap`);
     }
 
     const comments = inline.map((f) => ({

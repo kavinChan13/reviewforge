@@ -1,0 +1,53 @@
+{
+  "caseId": "go-tidwall-gjson-bbf40bb0",
+  "ablation": "full",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-bbf40bb0",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "go",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 1,
+    "matchedFindingIds": [
+      "21b8eb6ec489"
+    ]
+  },
+  "findings": [
+    {
+      "file": "gjson_test.go",
+      "line": 2581,
+      "endLine": 2581,
+      "severity": "high",
+      "title": "Unconditional test for Go 1.22+ JSON encoding",
+      "rationale": "The diff removed the Go version check that previously skipped the test for \\b/\\f characters in older Go versions. The test now runs unconditionally, causing failures in Go versions <1.22 where json.Marshal(\"\\b\\f\") produces \"\\b\\f\" instead of \"\\\\b\\\\f\". The test expects correct JSON encoding which only exists in Go 1.22+.",
+      "suggestion": "Reintroduce the Go version check to conditionally run the test only in Go 1.22+",
+      "suggestedPatch": "data, _ := json.Marshal(\"\\b\\f\")\nif (string(data) == \"\\\"\\\\b\\\\f\\\"\") {\n\ttestJSONString(t, \"\\b\\f\")\n\trng := rand.New(rand.NewSource(time.Now().UnixNano()))\n\tstart := time.Now()\n\tvar buf [16]byte\n\tfor time.Since(start) < time.Second*2 {\n\t\tif _, err := rng.Read(buf[:]); err != nil {\n\t\t\tt.Fatal(err)\n\t\t}\n\t\ttestJSONString(t, string(buf[:]))\n\t}\n}",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson_test.go:2578-2580 (original code)"
+        },
+        {
+          "type": "static_analysis",
+          "ref": "TestJSONString uses Go standard library json.Marshal which changed behavior in Go 1.22"
+        }
+      ],
+      "id": "21b8eb6ec489",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2592,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bbf40bb0"
+    }
+  ]
+}

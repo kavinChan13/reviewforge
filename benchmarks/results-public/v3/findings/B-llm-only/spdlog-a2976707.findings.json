@@ -1,0 +1,65 @@
+{
+  "caseId": "spdlog-a2976707",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "spdlog-a2976707",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 3,
+    "language": "c",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 1,
+    "matchedFindingIds": [
+      "b06ebcc0a0ef"
+    ]
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 157,
+      "endLine": 179,
+      "severity": "critical",
+      "title": "Premature WSACleanup() call in error paths",
+      "rationale": "WSACleanup() must be called exactly once at application exit (per Winsock API), but the diff adds it in multiple error paths (lines 157, 166, 179). This causes premature shutdown of Winsock for the entire client, breaking subsequent network operations. The error handling should not call WSACleanup() at all.",
+      "suggestion": "Remove all WSACleanup() calls from error paths; WSACleanup() should be called only once at application shutdown (not in connection logic).",
+      "suggestedPatch": "",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "guideline",
+          "ref": "Winsock API documentation: WSACleanup() must be called exactly once per WSAStartup() at application exit"
+        }
+      ],
+      "id": "b06ebcc0a0ef",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 156,
+      "endLine": 162,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 165,
+      "endLine": 171,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    },
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 178,
+      "endLine": 184,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix a2976707"
+    }
+  ]
+}

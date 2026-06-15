@@ -1,0 +1,53 @@
+{
+  "caseId": "go-tidwall-gjson-bbf40bb0",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-bbf40bb0",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "go",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 1,
+    "matchedFindingIds": [
+      "d284c65d4459"
+    ]
+  },
+  "findings": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2582,
+      "severity": "high",
+      "title": "Unconditional test for control characters on older Go versions",
+      "rationale": "The diff removed the Go version check that ensured json.Marshal correctly escaped \\b and \\f (required for valid JSON). On Go versions <1.22, json.Marshal(\"\\b\\f\") produces invalid JSON (raw control characters), causing gjson to fail parsing. The test now runs unconditionally, breaking on older Go versions.",
+      "suggestion": "Reintroduce version check to skip test on Go <1.22",
+      "suggestedPatch": "data, _ := json.Marshal(\"\\b\\f\")\nif (string(data) == \"\\\"\\\\b\\\\f\\\"\") {",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson_test.go:2578-2582 (diff)"
+        },
+        {
+          "type": "static_analysis",
+          "ref": "Go JSON encoding requires \\b/\\f escaping (json.Marshal behavior)"
+        }
+      ],
+      "id": "d284c65d4459",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2592,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bbf40bb0"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "caseId": "go-tidwall-gjson-bbf40bb0",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-bbf40bb0",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "go",
+    "truePositives": 1,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 1,
+    "matchedFindingIds": [
+      "ea6cb09ff107"
+    ]
+  },
+  "findings": [
+    {
+      "file": "gjson_test.go",
+      "line": 2580,
+      "endLine": 2580,
+      "severity": "high",
+      "title": "Unconditional test for control characters on unsupported Go versions",
+      "rationale": "The diff removed the version check that previously skipped the test for \\b and \\f characters on Go versions before 1.22. This causes the test to fail on older Go versions where json.Marshal does not correctly escape these control characters (as seen in the removed condition checking string(data) == \"\\\"\\\\b\\\\f\\\"\"), breaking the test suite.",
+      "suggestion": "Reintroduce the version check to only run the test on Go 1.22+",
+      "suggestedPatch": "data, _ := json.Marshal(\"\\b\\f\")\nif (string(data) == \"\\\"\\\\b\\\\f\\\"\") {\n\ttestJSONString(t, \"\\b\\f\")\n\trng := rand.New(rand.NewSource(time.Now().UnixNano()))\n\tstart := time.Now()\n\tvar buf [16]byte\n\tfor time.Since(start) < time.Second*2 {\n\t\tif _, err := rng.Read(buf[:]); err != nil {\n\t\t\tt.Fatal(err)\n\t\t}\n\t\ttestJSONString(t, string(buf[:]))\n\t}\n}",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson_test.go:2580 (original line before diff)"
+        },
+        {
+          "type": "static_analysis",
+          "ref": "Test suite must pass on all supported Go versions"
+        }
+      ],
+      "id": "ea6cb09ff107",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson_test.go",
+      "line": 2578,
+      "endLine": 2592,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bbf40bb0"
+    }
+  ]
+}

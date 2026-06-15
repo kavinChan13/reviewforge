@@ -1,3 +1,4 @@
+import { fetchWithRetry } from "../../providers/http.js";
 import { SEVERITIES, severityRank, type Finding, type Severity } from "../finding.js";
 import { type PostResult, type ReviewSink, ReviewSinkError, type SinkContext } from "./types.js";
 
@@ -67,16 +68,19 @@ async function gerritFetch(
 ): Promise<any> {
   const url = `${cfg.baseUrl.replace(/\/$/, "")}/a${path}`;
   const auth = Buffer.from(`${cfg.user}:${cfg.password}`).toString("base64");
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Basic ${auth}`,
+  const res = await fetchWithRetry(
+    url,
+    {
+      method,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
     },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(60_000),
-  });
+    { timeoutMs: 60_000, retries: 3 },
+  );
   const text = await res.text();
   if (!res.ok) {
     throw new ReviewSinkError(`Gerrit ${method} ${path} -> ${res.status}: ${text.slice(0, 300)}`);

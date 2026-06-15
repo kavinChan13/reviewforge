@@ -13,7 +13,7 @@
   },
   "files": [
     "bin/",
-    "src/",
+    "dist/",
     "package.json",
     "README.md"
   ],
@@ -23,7 +23,8 @@
     "review": "tsx bin/reviewforge.ts review",
     "doctor": "tsx bin/reviewforge.ts doctor",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
     "test": "vitest run"
   },
   "engines": {

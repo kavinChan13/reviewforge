@@ -3,6 +3,7 @@ import path from "node:path";
 import { cosineSimilarity } from "../providers/embeddings.js";
 import type { EmbeddingProvider } from "../providers/types.js";
 import type { Finding } from "../report/finding.js";
+import { writeFileAtomic } from "../util/fs.js";
 
 export type MemoryKind = "confirmed_bug" | "false_positive";
 export type Verdict = "accept" | "reject" | "ignore";
@@ -36,6 +37,33 @@ function emptyProfile(): RepoProfile {
   return { fileHotspots: {}, categoryCounts: {}, updatedAt: new Date().toISOString() };
 }
 
+/** Recompute the repo profile from confirmed-bug records (idempotent). */
+function recomputeProfile(records: MemoryRecord[]): RepoProfile {
+  const fileHotspots: Record<string, number> = {};
+  const categoryCounts: Record<string, number> = {};
+  for (const r of records) {
+    if (r.kind !== "confirmed_bug") continue;
+    fileHotspots[r.file] = (fileHotspots[r.file] ?? 0) + 1;
+    categoryCounts[r.category] = (categoryCounts[r.category] ?? 0) + 1;
+  }
+  return { fileHotspots, categoryCounts, updatedAt: new Date().toISOString() };
+}
+
+/**
+ * Merge two memory snapshots without losing updates: records are unioned by id
+ * (the most recently-written one wins) and the profile is recomputed from the
+ * merged records so concurrent writers cannot double-count or clobber each other.
+ */
+function mergeMemory(a: MemoryData, b: MemoryData): MemoryData {
+  const byId = new Map<string, MemoryRecord>();
+  for (const r of [...a.records, ...b.records]) {
+    const existing = byId.get(r.id);
+    if (!existing || r.createdAt >= existing.createdAt) byId.set(r.id, r);
+  }
+  const records = [...byId.values()];
+  return { records, profile: recomputeProfile(records) };
+}
+
 /**
  * Long-term cross-run memory — the feedback learning loop.
  *
@@ -64,8 +92,19 @@ export class LongTermMemory {
   }
 
   async save(): Promise<void> {
-    await fs.mkdir(path.dirname(this.file), { recursive: true });
-    await fs.writeFile(this.file, JSON.stringify(this.data, null, 2));
+    // Reload-merge before writing so a concurrent `rf feedback` / review run that
+    // touched the store in between does not get its records clobbered (last-writer
+    // -wins would silently drop the other process's feedback).
+    try {
+      const onDisk = JSON.parse(await fs.readFile(this.file, "utf8")) as MemoryData;
+      this.data = mergeMemory(
+        { records: onDisk.records ?? [], profile: onDisk.profile ?? emptyProfile() },
+        this.data,
+      );
+    } catch {
+      /* no existing store yet */
+    }
+    await writeFileAtomic(this.file, JSON.stringify(this.data, null, 2));
   }
 
   get profile(): RepoProfile {
@@ -151,11 +190,8 @@ export class LongTermMemory {
       createdAt: new Date().toISOString(),
     });
 
-    if (verdict === "accept") {
-      const p = this.data.profile;
-      p.fileHotspots[finding.file] = (p.fileHotspots[finding.file] ?? 0) + 1;
-      p.categoryCounts[finding.category] = (p.categoryCounts[finding.category] ?? 0) + 1;
-      p.updatedAt = new Date().toISOString();
-    }
+    // Recompute (rather than increment) so re-accepting the same finding id is
+    // idempotent and the profile always reflects the current record set.
+    this.data.profile = recomputeProfile(this.data.records);
   }
 }

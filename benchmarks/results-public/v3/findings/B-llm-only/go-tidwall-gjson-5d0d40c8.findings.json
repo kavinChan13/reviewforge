@@ -1,0 +1,43 @@
+{
+  "caseId": "go-tidwall-gjson-5d0d40c8",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-5d0d40c8",
+    "labelSource": "real",
+    "totalFindings": 0,
+    "totalGroundTruth": 3,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 0,
+    "falseNegatives": 1,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1252,
+      "endLine": 1258,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2194,
+      "endLine": 2200,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3353,
+      "endLine": 3359,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    }
+  ]
+}

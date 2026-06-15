@@ -1,0 +1,446 @@
+{
+  "tool": "reviewforge-eval",
+  "generatedAt": "2026-06-15T06:10:24.898Z",
+  "runs": [
+    {
+      "config": "B-llm-only",
+      "perCase": [
+        {
+          "caseId": "go-tidwall-gjson-5ab551f3",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 0,
+          "falsePositives": 1,
+          "falseNegatives": 2,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "go-tidwall-gjson-5d0d40c8",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "go-tidwall-gjson-8d2c36ff",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 1,
+          "matchedFindingIds": [
+            "08ee8ac97b26"
+          ]
+        },
+        {
+          "caseId": "go-tidwall-gjson-bbf40bb0",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "21dbfc21d8b9"
+          ]
+        },
+        {
+          "caseId": "negative-cpp-rename",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "negative-ts-comment",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-2e71fdf3",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-a2976707",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "b06ebcc0a0ef"
+          ]
+        },
+        {
+          "caseId": "spdlog-bfde7d37",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "321d71095d5e"
+          ]
+        },
+        {
+          "caseId": "spdlog-d1d1b6ff",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        }
+      ],
+      "aggregate": {
+        "cases": 10,
+        "truePositives": 4,
+        "falsePositives": 1,
+        "falseNegatives": 6,
+        "recall": 0.4,
+        "precision": 0.8,
+        "f1": 0.5333333333333333,
+        "falsePositivesPerCase": 0.1,
+        "localizationAccuracy": 1
+      }
+    },
+    {
+      "config": "+rag",
+      "perCase": [
+        {
+          "caseId": "go-tidwall-gjson-5ab551f3",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 1,
+          "matchedFindingIds": [
+            "a17c7dd01978"
+          ]
+        },
+        {
+          "caseId": "go-tidwall-gjson-5d0d40c8",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "go-tidwall-gjson-8d2c36ff",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 1,
+          "matchedFindingIds": [
+            "5993970dec54"
+          ]
+        },
+        {
+          "caseId": "go-tidwall-gjson-bbf40bb0",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "ea6cb09ff107"
+          ]
+        },
+        {
+          "caseId": "negative-cpp-rename",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "negative-ts-comment",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-2e71fdf3",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-a2976707",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 3,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "eb5fcc36ad8a",
+            "6da2824eddb5",
+            "ade73d57223f"
+          ]
+        },
+        {
+          "caseId": "spdlog-bfde7d37",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "b1f77ea5aa26"
+          ]
+        },
+        {
+          "caseId": "spdlog-d1d1b6ff",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        }
+      ],
+      "aggregate": {
+        "cases": 10,
+        "truePositives": 5,
+        "falsePositives": 0,
+        "falseNegatives": 5,
+        "recall": 0.5,
+        "precision": 1,
+        "f1": 0.6666666666666666,
+        "falsePositivesPerCase": 0,
+        "localizationAccuracy": 1
+      }
+    },
+    {
+      "config": "full",
+      "perCase": [
+        {
+          "caseId": "go-tidwall-gjson-5ab551f3",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 1,
+          "matchedFindingIds": [
+            "a17c7dd01978"
+          ]
+        },
+        {
+          "caseId": "go-tidwall-gjson-5d0d40c8",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "go-tidwall-gjson-8d2c36ff",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 2,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 1,
+          "matchedFindingIds": [
+            "5993970dec54"
+          ]
+        },
+        {
+          "caseId": "go-tidwall-gjson-bbf40bb0",
+          "labelSource": "real",
+          "language": "go",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "ea6cb09ff107"
+          ]
+        },
+        {
+          "caseId": "negative-cpp-rename",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "negative-ts-comment",
+          "labelSource": "negative",
+          "language": "unknown",
+          "totalFindings": 0,
+          "totalGroundTruth": 0,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-2e71fdf3",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        },
+        {
+          "caseId": "spdlog-a2976707",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 3,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "eb5fcc36ad8a",
+            "6da2824eddb5",
+            "ade73d57223f"
+          ]
+        },
+        {
+          "caseId": "spdlog-bfde7d37",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 1,
+          "totalGroundTruth": 1,
+          "truePositives": 1,
+          "falsePositives": 0,
+          "falseNegatives": 0,
+          "localized": 1,
+          "matchedFindingIds": [
+            "91ea56175cee"
+          ]
+        },
+        {
+          "caseId": "spdlog-d1d1b6ff",
+          "labelSource": "real",
+          "language": "c",
+          "totalFindings": 0,
+          "totalGroundTruth": 1,
+          "truePositives": 0,
+          "falsePositives": 0,
+          "falseNegatives": 1,
+          "localized": 0,
+          "matchedFindingIds": []
+        }
+      ],
+      "aggregate": {
+        "cases": 10,
+        "truePositives": 5,
+        "falsePositives": 0,
+        "falseNegatives": 5,
+        "recall": 0.5,
+        "precision": 1,
+        "f1": 0.6666666666666666,
+        "falsePositivesPerCase": 0,
+        "localizationAccuracy": 1
+      }
+    }
+  ]
+}

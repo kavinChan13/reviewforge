@@ -90,19 +90,31 @@ CI 模板：[`examples/github-actions/reviewforge.yml`](./examples/github-action
 - **可量化**：基准集（含真实历史缺陷种子）+ 消融实验给出召回率 / 误报率 / 相对 clang-tidy 的增量价值（详见评测计划）。
 - **差异化**：LLM 推理 × 传统静态分析 × 代码库 RAG，专精 C++ 内存/并发/ABI/UB 类深坑。
 
-## 真实评测结果（v2：13 个多语言 case，含 negative）
+## 真实评测结果（公开子集，可复现）
 
-> 升级后的完整流水线（tree-sitter + 验证者 + 分诊 + 多语言静态分析）在 13 个 case
-> （内部 C++ ×3、spdlog C++ ×4、gjson Go ×4、negative ×2）上的消融。
-> 指标按 **defect 组级别**计（多 hunk 修复算 1 个缺陷，符合"是否抓到这个 bug"的真实评审单位），reviewer 视角：
+> 完整流水线（tree-sitter + 验证者 + 分诊 + 多语言静态分析）在 **10 个公开 case**
+> （spdlog C/C++ ×4、tidwall/gjson Go ×4、negative/clean ×2）上的消融。内部 C++ 历史 case
+> 因保密未纳入公开仓库（见下节）。指标按 **defect 组级别 + category-agnostic** 计（多 hunk
+> 修复算 1 个缺陷，"是否抓到这个 bug"的真实评审单位，reviewer 视角），用本工具自带的
+> `matchCase`/`aggregateMetrics` 重算，**可从公开仓库完全复现**。
+> 完整数据：[`benchmarks/results-public/`](./benchmarks/results-public/)。
+
+**v2（10 个公开 case）**
 
 | Config | Recall | Precision | F1 | FP/case | Localization |
 |---|---|---|---|---|---|
-| B-llm-only | 50.0% | 100% | 66.7% | 0.00 | 100% |
-| **+rag / full** | **64.3%** | **100%** | **78.3%** | **0.00** | 100% |
+| B-llm-only | 40.0% | 100% | 57.1% | 0.00 | 100% |
+| **+rag / full** | **60.0%** | **100%** | **75.0%** | **0.00** | 100% |
 
-- **RAG 把 recall 提升 +29% 相对（50→64.3%）、F1 +17%（66.7→78.3%）**，全程 **100% 精确率 / 0 误报**（含 2 个 negative case 零误报）。
-- **强精确率导向**：13 个 case（含 negative）一个 false positive 都没有，FP/case = 0，100% 行号定位。
+**v3（10 个公开 case，复跑）**
+
+| Config | Recall | Precision | F1 | FP/case | Localization |
+|---|---|---|---|---|---|
+| B-llm-only | 40.0% | 80% | 53.3% | 0.10 | 100% |
+| **+rag / full** | **50.0%** | **100%** | **66.7%** | **0.00** | 100% |
+
+- **RAG 提升 recall**（v2 40→60%、v3 40→50%），并保持 **100% 精确率 / 近 0 误报**（含 2 个 negative/clean case 零误报）、100% 行号定位。
+- 早期口径曾报 64.3%（13 个 case，含 3 个模型表现更好的内部 C++ 历史 bug）；公开子集剔除内部用例后数字略低——这是去保密，非刷分。结论一致：**RAG 单调提升 recall，精确率导向稳健**。
 
 ### 多次跑动的方差（5 个 C++ case × 3 runs，关缓存）
 
@@ -115,19 +127,20 @@ CI 模板：[`examples/github-actions/reviewforge.yml`](./examples/github-action
 | Localization | 100% | — |
 
 → **recall 的 ±19pt 标准差**用实测证明了"单次跑动噪声很大"：同一输入下 recall 能在 33%↔67% 间摆动。
-所以单次消融的小差异（如 v2 64.3% vs v3 57.1%）落在噪声内、不可据此下结论；**而误报率稳定且低（0.20±0.00）**——精确率导向是稳健的。
+所以单次消融的小差异（如公开子集 v2 60% vs v3 50%）落在噪声内、不可据此下结论；**而误报率稳定且低（0.20±0.00）**——精确率导向是稳健的。
 
 ### 评测方法学的三个诚实教训
 1. **指标单位很关键**：多 hunk 修复的每条 GT 当独立缺陷算会严重低估 recall（33%）；改为"每文件每类别一个缺陷组"后同一批 findings 升到 64.3%——是口径修正，不是刷分。
 2. **单次跑动噪声大**：见上表 ±19pt；可靠对比必须 `--runs N` 多次取均值。
 3. **缓存让结果可复现**：开缓存时多次跑动 std=0（确定性）；测真实方差要关缓存（`RF_CACHE=0`）。
 
-完整数据：`benchmarks/results/{v2,v3,v4-multirun,v5-variance}`。
+公开完整数据：[`benchmarks/results-public/`](./benchmarks/results-public/)（v2/v3）。
+内部 C++ 用例及其方差实验（v4-multirun / v5-variance）因保密未纳入公开仓库。
 
 ## 历史结果（3 个内部 C++ 历史 bug，代码与数据未公开）
 
 > 模型：`ollama/qwen3-32b`（OpenAI 兼容内部网关）· 嵌入：`ollama/bge-m3`  
-> 完整数据：[`benchmarks/results/`](./benchmarks/results/)
+> 注：本节基于内部专有 C++ 代码，**用例与原始数据不公开**；下列数字仅作定性参考，无法从本仓库复现。可复现的数字见上节"公开子集"。
 
 ### 调优后核心数字（reviewer 视角，category-agnostic 匹配）
 

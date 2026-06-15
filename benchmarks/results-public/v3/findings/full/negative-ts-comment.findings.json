@@ -1,0 +1,18 @@
+{
+  "caseId": "negative-ts-comment",
+  "ablation": "full",
+  "metrics": {
+    "caseId": "negative-ts-comment",
+    "labelSource": "negative",
+    "totalFindings": 0,
+    "totalGroundTruth": 0,
+    "language": "unknown",
+    "truePositives": 0,
+    "falsePositives": 0,
+    "falseNegatives": 0,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [],
+  "groundTruth": []
+}

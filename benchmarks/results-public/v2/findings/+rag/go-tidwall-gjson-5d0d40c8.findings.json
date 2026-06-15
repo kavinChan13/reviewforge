@@ -1,0 +1,101 @@
+{
+  "caseId": "go-tidwall-gjson-5d0d40c8",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-5d0d40c8",
+    "labelSource": "real",
+    "totalFindings": 3,
+    "totalGroundTruth": 3,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 3,
+    "falseNegatives": 3,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1252,
+      "endLine": 1252,
+      "severity": "low",
+      "title": "Typo in comment",
+      "rationale": "Comment contains typo 'arbritary' instead of 'arbitrary', causing misleading documentation about input validation.",
+      "suggestion": "Correct typo to 'arbitrary'",
+      "suggestedPatch": "// attacks from arbitrary inputs.",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson.go:1252"
+        }
+      ],
+      "id": "8195883a2c18",
+      "category": "maintainability"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2194,
+      "endLine": 2194,
+      "severity": "low",
+      "title": "Typo in comment",
+      "rationale": "Comment contains typo 'paramater' instead of 'parameter', causing misleading documentation about token comparison behavior.",
+      "suggestion": "Correct typo to 'parameter'",
+      "suggestedPatch": "// The caseSensitive parameter is used when the tokens are Strings.",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson.go:2194"
+        }
+      ],
+      "id": "6633128acc20",
+      "category": "maintainability"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3353,
+      "endLine": 3353,
+      "severity": "low",
+      "title": "Typo in comment",
+      "rationale": "Comment contains typo 'exepcted' instead of 'expected', causing misleading documentation about result validation in Path method.",
+      "suggestion": "Correct typo to 'expected'",
+      "suggestedPatch": "// Result is not at the JSON index as expected.",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson.go:3353"
+        }
+      ],
+      "id": "e9dda1c8da78",
+      "category": "maintainability"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 1252,
+      "endLine": 1258,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2194,
+      "endLine": 2200,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3353,
+      "endLine": 3359,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix 5d0d40c8"
+    }
+  ]
+}

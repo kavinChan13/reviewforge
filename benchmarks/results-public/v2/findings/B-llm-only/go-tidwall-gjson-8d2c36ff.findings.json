@@ -1,0 +1,163 @@
+{
+  "caseId": "go-tidwall-gjson-8d2c36ff",
+  "ablation": "B-llm-only",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-8d2c36ff",
+    "labelSource": "real",
+    "totalFindings": 0,
+    "totalGroundTruth": 18,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 0,
+    "falseNegatives": 18,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 645,
+      "endLine": 653,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 661,
+      "endLine": 667,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 826,
+      "endLine": 844,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1251,
+      "endLine": 1265,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1918,
+      "endLine": 1940,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2126,
+      "endLine": 2133,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2556,
+      "endLine": 2566,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2568,
+      "endLine": 2580,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2848,
+      "endLine": 2856,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2895,
+      "endLine": 2901,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2922,
+      "endLine": 2928,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2947,
+      "endLine": 2957,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3024,
+      "endLine": 3030,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3033,
+      "endLine": 3039,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3210,
+      "endLine": 3220,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3239,
+      "endLine": 3249,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2129,
+      "endLine": 2138,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2146,
+      "endLine": 2154,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    }
+  ]
+}

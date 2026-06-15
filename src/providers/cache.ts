@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { writeFileAtomic } from "../util/fs.js";
 import type { ChatProvider, ChatRequest, ChatResponse } from "./types.js";
 
 /**
@@ -46,8 +47,7 @@ export class CachingChatProvider implements ChatProvider {
     const res = await this.inner.chat(req);
     this.mem.set(k, res);
     try {
-      await fs.mkdir(this.cacheDir, { recursive: true });
-      await fs.writeFile(file, JSON.stringify(res));
+      await writeFileAtomic(file, JSON.stringify(res));
     } catch {
       /* cache write best-effort */
     }

@@ -1,0 +1,187 @@
+{
+  "caseId": "go-tidwall-gjson-8d2c36ff",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "go-tidwall-gjson-8d2c36ff",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 18,
+    "language": "go",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 18,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "gjson.go",
+      "line": 1260,
+      "endLine": 1262,
+      "severity": "critical",
+      "title": "Missing Result.Bool() method",
+      "rationale": "The diff replaces the old `trueish`/`falseish` logic with `value.Bool()`, but the Result struct (lines 55-69) has no Bool() method. The struct defines Type, Raw, Str, Num, etc., but no Bool() method exists. This will cause a compilation error.",
+      "suggestion": "Add a Bool() method to Result that returns true for True, String \"true\", Number != 0, etc., or revert to the old logic using trueish/falseish.",
+      "suggestedPatch": "func (t Result) Bool() bool {\n\tswitch t.Type {\n\tcase True:\n\t\treturn true\n\tcase String:\n\t\tb, _ := strconv.ParseBool(strings.ToLower(t.Str))\n\t\treturn b\n\tcase Number:\n\t\treturn t.Num != 0\n\tdefault:\n\t\treturn false\n\t}\n}",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "code",
+          "ref": "gjson.go:55-69"
+        },
+        {
+          "type": "code",
+          "ref": "gjson.go:1260-1262"
+        }
+      ],
+      "id": "5dbed7f1ba5e",
+      "category": "correctness"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "gjson.go",
+      "line": 645,
+      "endLine": 653,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 661,
+      "endLine": 667,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 826,
+      "endLine": 844,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1251,
+      "endLine": 1265,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 1918,
+      "endLine": 1940,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2126,
+      "endLine": 2133,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2556,
+      "endLine": 2566,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2568,
+      "endLine": 2580,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2848,
+      "endLine": 2856,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2895,
+      "endLine": 2901,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2922,
+      "endLine": 2928,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 2947,
+      "endLine": 2957,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3024,
+      "endLine": 3030,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3033,
+      "endLine": 3039,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3210,
+      "endLine": 3220,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson.go",
+      "line": 3239,
+      "endLine": 3249,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2129,
+      "endLine": 2138,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    },
+    {
+      "file": "gjson_test.go",
+      "line": 2146,
+      "endLine": 2154,
+      "category": "memory",
+      "severity": "medium",
+      "note": "Inverse of fix 8d2c36ff"
+    }
+  ]
+}

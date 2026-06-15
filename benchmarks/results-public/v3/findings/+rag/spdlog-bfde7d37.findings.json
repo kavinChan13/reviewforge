@@ -1,0 +1,51 @@
+{
+  "caseId": "spdlog-bfde7d37",
+  "ablation": "+rag",
+  "metrics": {
+    "caseId": "spdlog-bfde7d37",
+    "labelSource": "real",
+    "totalFindings": 1,
+    "totalGroundTruth": 1,
+    "language": "c",
+    "truePositives": 0,
+    "falsePositives": 1,
+    "falseNegatives": 1,
+    "localized": 0,
+    "matchedFindingIds": []
+  },
+  "findings": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 54,
+      "endLine": 55,
+      "severity": "high",
+      "title": "Unconditional closesocket call with possible invalid socket",
+      "rationale": "The change removed the check for socket_ != INVALID_SOCKET before calling closesocket. Windows API requires a valid socket handle for closesocket; passing INVALID_SOCKET (typically -1) causes undefined behavior (e.g., crash or error). The old code safely skipped the call when socket was already closed.",
+      "suggestion": "Reintroduce the validity check before calling closesocket",
+      "suggestedPatch": "        if (socket_ != INVALID_SOCKET) {\n            ::closesocket(socket_);\n            socket_ = INVALID_SOCKET;\n        }",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "type": "static_analysis",
+          "ref": "Windows API documentation: closesocket requires valid socket handle"
+        },
+        {
+          "type": "guideline",
+          "ref": "spdlog coding guidelines: handle socket state transitions safely"
+        }
+      ],
+      "id": "b1f77ea5aa26",
+      "category": "maintainability"
+    }
+  ],
+  "groundTruth": [
+    {
+      "file": "include/spdlog/details/tcp_client-windows.h",
+      "line": 52,
+      "endLine": 59,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "Inverse of fix bfde7d37"
+    }
+  ]
+}
