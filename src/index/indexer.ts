@@ -1,5 +1,7 @@
+import crypto from "node:crypto";
 import { execa } from "execa";
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { Config } from "../config.js";
 import { embedConfigured } from "../config.js";
 import { OpenAICompatEmbeddingProvider } from "../providers/embeddings.js";
@@ -26,6 +28,55 @@ async function currentCommit(repoRoot: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export interface FreshnessReport {
+  indexCommit: string | null;
+  headCommit: string | null;
+  /** HEAD moved since the index was built. */
+  commitMismatch: boolean;
+  /** Files under review whose current content differs from (or is missing in) the index. */
+  staleFiles: string[];
+  checkedFiles: number;
+  get stale(): boolean;
+}
+
+/**
+ * Cheaply assess whether the loaded index reflects the code being reviewed.
+ * Only the changed files are re-hashed (not the whole repo), so this is safe to
+ * run on every review even for large codebases. A mismatch means the symbol
+ * graph / vectors used as CONTEXT may be stale relative to the actual files.
+ */
+export async function assessIndexFreshness(
+  cfg: Config,
+  meta: IndexMeta,
+  changedFiles: string[],
+): Promise<FreshnessReport> {
+  const headCommit = await currentCommit(cfg.repoRoot);
+  const staleFiles: string[] = [];
+  let checkedFiles = 0;
+  for (const f of changedFiles) {
+    let cur: string | null = null;
+    try {
+      const buf = await fs.readFile(path.resolve(cfg.repoRoot, f));
+      cur = crypto.createHash("sha1").update(buf).digest("hex");
+    } catch {
+      continue; // deleted/unreadable — not a staleness signal
+    }
+    checkedFiles++;
+    if (meta.fileHashes[f] !== cur) staleFiles.push(f);
+  }
+  const commitMismatch = Boolean(headCommit && meta.commit && headCommit !== meta.commit);
+  return {
+    indexCommit: meta.commit,
+    headCommit,
+    commitMismatch,
+    staleFiles,
+    checkedFiles,
+    get stale() {
+      return commitMismatch || staleFiles.length > 0;
+    },
+  };
 }
 
 const EMBED_BATCH = 64;

@@ -10,7 +10,7 @@ import {
   loadRepoFileConfig,
   type Config,
 } from "./config.js";
-import { buildIndex } from "./index/indexer.js";
+import { assessIndexFreshness, buildIndex } from "./index/indexer.js";
 import { CodebaseIndex, indexExists } from "./index/store.js";
 import { LongTermMemory } from "./memory/store.js";
 import { OpenAICompatChatProvider } from "./providers/chat.js";
@@ -88,6 +88,7 @@ interface ReviewOpts {
   pr?: string;
   change?: string;
   dryRun?: boolean;
+  reindex?: boolean;
 }
 
 async function cmdReview(opts: ReviewOpts): Promise<void> {
@@ -110,6 +111,13 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
     ? buildChatProvider(cfg, { modelOverride: cfg.triageModel, cache: true })
     : null;
 
+  // Optionally refresh the index (incremental) so the symbol graph / vectors
+  // used as review context reflect the current code rather than a stale snapshot.
+  if (opts.reindex && !opts.dryRun) {
+    logErr(pc.cyan("Refreshing codebase index (incremental) before review..."));
+    await buildIndex(cfg, logErr);
+  }
+
   let index: CodebaseIndex | null = null;
   if (await indexExists(cfg.dataDirAbs)) {
     index = await CodebaseIndex.load(cfg.dataDirAbs);
@@ -129,6 +137,28 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
   if (context.regions.length === 0) {
     logErr(pc.yellow("No changes found in the diff. Nothing to review."));
     return;
+  }
+
+  // Staleness guard: if the index predates the code under review, the symbol
+  // graph / semantic search may feed the reviewers outdated context.
+  if (index && !opts.reindex) {
+    const fr = await assessIndexFreshness(cfg, index.meta, context.changedFiles);
+    if (fr.stale) {
+      const bits: string[] = [];
+      if (fr.commitMismatch) {
+        bits.push(`index built at ${fr.indexCommit?.slice(0, 8) ?? "?"}, HEAD is ${fr.headCommit?.slice(0, 8) ?? "?"}`);
+      }
+      if (fr.staleFiles.length) {
+        bits.push(`${fr.staleFiles.length}/${fr.checkedFiles} changed file(s) differ from the index`);
+      }
+      logErr(
+        pc.yellow(
+          `Warning: codebase index looks stale (${bits.join("; ")}). ` +
+            "Symbol-graph / semantic-search context may be outdated — " +
+            "re-run with `--reindex` or `rf index` for accurate context.",
+        ),
+      );
+    }
   }
 
   const toolCtx: ToolContext = { cfg, index, embed, review: context, memory };
@@ -578,6 +608,7 @@ export async function run(argv: string[]): Promise<void> {
     .option("--pr <number>", "GitHub PR number (or set GITHUB_PR_NUMBER)")
     .option("--change <id>", "Gerrit change id/number (or set GERRIT_CHANGE_ID)")
     .option("--dry-run", "Build context + assemble prompts; do NOT call the LLM")
+    .option("--reindex", "Incrementally refresh the codebase index before reviewing (fresh context)")
     .action(cmdReview);
 
   program
