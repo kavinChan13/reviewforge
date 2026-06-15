@@ -21,7 +21,7 @@
 
 <h4>
 
-[快速开始](#-快速开始) · [核心特性](#-核心特性) · [系统架构](#-系统架构) · [评测结果](#-评测结果可复现) · [文档](#-文档) · [路线图](#-路线图)
+[快速开始](#-快速开始) · [CI / GitHub Actions](#ci-github-actions) · [核心特性](#-核心特性) · [系统架构](#-系统架构) · [评测结果](#-评测结果可复现) · [文档](#-文档) · [路线图](#-路线图)
 
 </h4>
 
@@ -35,6 +35,7 @@
 - [✨ 核心特性](#-核心特性)
 - [🔎 系统架构](#-系统架构)
 - [🚀 快速开始](#-快速开始)
+- [CI / GitHub Actions](#ci-github-actions)
 - [🧰 CLI 命令速查](#-cli-命令速查)
 - [🔧 配置](#-配置)
 - [📊 评测结果（可复现）](#-评测结果可复现)
@@ -185,7 +186,43 @@ rf review --base main
 ```
 
 > 索引可在**无对话 API key** 时构建；`review` / `eval` 需要可用的对话 provider。
-> 误报抑制支持仓库根目录的 `.rfignore`（文件 glob）。CI 模板见 [`examples/github-actions/reviewforge.yml`](./examples/github-actions/reviewforge.yml)。
+> 误报抑制支持仓库根目录的 `.rfignore`（文件 glob）。在 CI 中跑审查见下节 [CI / GitHub Actions](#ci-github-actions)。
+
+---
+
+## CI / GitHub Actions
+
+### 本仓库（开发）CI
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml)：`push` 到 `main` 与所有 `pull_request` 触发；执行 `npm ci`、`npm run typecheck`、`npm test`。产物为 Actions 日志与通过/失败状态，无额外上传制品。
+
+### 在「被审查的业务仓库」里用 GitHub Actions
+
+官方示例 workflow：[`examples/github-actions/reviewforge.yml`](./examples/github-actions/reviewforge.yml)。将其复制到业务仓库的 `.github/workflows/`（可按需改名）后，注意下列事项。
+
+| 项 | 说明 |
+|---|---|
+| **触发条件** | `pull_request`，且 `types: [opened, synchronize, reopened]`（新建 PR、推送更新、重新打开时跑）。 |
+| **检出深度** | `actions/checkout` 建议 `fetch-depth: 0`，保证与 `--base` 的 diff 与本地 `git` 行为一致。 |
+| **权限** | `contents: read`；若使用 `--post github` 回贴行内评论，需 `pull-requests: write`。 |
+| **占位符 `your-org`** | 「Clone ReviewForge」步骤中的 `https://github.com/your-org/reviewforge.git` **必须**改为你实际使用的 fork、镜像或上游地址；生产环境建议固定 **tag / commit SHA**，避免默认分支漂移破坏构建。 |
+| **Secrets（敏感）** | **`LLM_API_KEY`**（必填，对话模型）。可选：`EMBED_API_KEY`（启用语义检索时）。`GITHUB_TOKEN` 由 Actions 注入，模板里用 `secrets.GITHUB_TOKEN` 即可。 |
+| **Variables（非敏感，可覆盖默认）** | `LLM_BASE_URL`、`LLM_MODEL`、`EMBED_BASE_URL`、`EMBED_MODEL` 等；未设置时模板内对 OpenAI 兼容默认值生效（见 YAML 注释）。 |
+
+**示例 workflow 的产物与行为**
+
+- **`review-out/`**：`--format all` 生成 Markdown、JSON、SARIF 等报告文件。
+- **SARIF**：`github/codeql-action/upload-sarif` 上传 `review-out/review.sarif`（步骤带 `if: always()` 与 `continue-on-error: true`，上传失败不一定阻断流水线）。
+- **Artifact**：`actions/upload-artifact` 打包 `review-out`，在 Actions 界面下载（artifact 名示例：`reviewforge-report`）。
+- **PR 评论**：`--post github` 在 PR 上发审查评论。
+- **门禁**：示例为 `--fail-on critical`，超过阈值的 finding 会使 job **非零退出**、标红；可按需改为 `high` / `medium` 或去掉该参数。
+
+### GitLab、Gerrit 与自建私有 CI
+
+ReviewForge 为 **CLI + 环境变量**，不绑定 GitHub Actions：在 **GitLab CI**、**Jenkins**、**Gerrit 触发的 job** 等环境中，用同样思路执行 `index` → `review`、保存制品即可。
+
+- **Gerrit**：内置 `--post gerrit` 与 `GERRIT_*` 环境变量（见 [`.env.example`](./.env.example)），Runner 能访问 Gerrit HTTP API 即可回贴。
+- **GitLab**：当前无专用 `gitlab` 行内回贴 sink；可用 **`--format all --out`** 产出报告并作为 **CI 制品**，或自行对接 GitLab API / 平台支持的 SARIF、代码质量报告格式。
 
 ---
 
