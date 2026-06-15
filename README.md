@@ -1,163 +1,301 @@
-# ReviewForge
+<div align="center">
 
-**AI 代码审查 Agent（面向 C++/系统代码，多语言）** · *AI code review agent for C++/systems code with multi-language support*
+<img src="./assets/reviewforge-banner.png" alt="ReviewForge" width="100%"/>
+
+<p>
+
+<strong>面向 C++/系统代码的自主 AI 代码审查 Agent · 多语言支持</strong><br/>
+<em>An autonomous AI code-review agent for C++ / systems code, with multi-language support.</em>
+
+</p>
+
+<p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![SARIF](https://img.shields.io/badge/output-SARIF%202.1.0-8A2BE2.svg)](https://sarifweb.azurewebsites.net/)
+[![Status](https://img.shields.io/badge/status-runnable-brightgreen.svg)](#-评测结果可复现)
 
-给仓库一个 **diff / 分支 / 提交范围**，ReviewForge 会结合 **代码库上下文**（tree-sitter 符号图 + 可选向量 RAG）、**项目规范** 与 **静态分析**（clang-tidy / ruff / eslint / go vet），通过 **多维度子 Agent + 验证者** 输出带行号、严重级别、置信度与修复建议的结构化审查结果（Markdown / JSON / SARIF），并支持 **CI 门禁** 与 **GitHub PR / Gerrit** 行内回贴。
+</p>
 
-**状态：可运行。** 已实现 M1（多维审查）+ M2（评测与记忆闭环）+ M3（平台对接与 CI），并完成质量、性能与生产化相关增强。
+<h4>
 
----
+[快速开始](#-快速开始) · [核心特性](#-核心特性) · [系统架构](#-系统架构) · [评测结果](#-评测结果可复现) · [文档](#-文档) · [路线图](#-路线图)
 
-## 目录
+</h4>
 
-- [ReviewForge 是什么](#reviewforge-是什么)
-- [快速开始](#快速开始)
-- [核心能力](#核心能力)
-- [架构一览](#架构一览)
-- [文档](#文档)
-- [评测与可复现结果](#评测与可复现结果)
-- [技术栈](#技术栈)
-- [许可证](#许可证)
+</div>
 
 ---
 
-## ReviewForge 是什么
+## 📕 目录
 
-ReviewForge 是一套 **可本地运行的 CLI 审查流水线**：在改动周围自动拼装「符号 + 检索 + 静态分析」证据，由多个专职维度的审查子 Agent 并行分析，再由验证者在聚合前对每条 finding 做 **diff 依据复核**，从而降低幻觉与越界误报。专精 **C++/系统代码**（内存、并发、ABI、UB 等），同时原生覆盖 **C / C++ / TypeScript / Python / Go / Rust / Java** 等语言的审查路径。
-
-**行业对标：** CodeRabbit、Cursor Bugbot、Greptile、Copilot Code Review 一类产品；本仓库强调 **可量化评测**（基准集 + 消融）与 **LLM × 静态分析 × RAG** 的融合，而非单一聊天式点评。
-
----
-
-## 快速开始
-
-### 环境要求
-
-- **Node.js** ≥ 18  
-- **Git** 与待审查的本地仓库  
-- **可选：** `compile_commands.json`、`.clang-tidy`（启用 clang-tidy 深度融合）、嵌入模型配置（启用语义检索）
-
-### 安装与自检
-
-```bash
-npm install
-npm link          # 或 npm install -g .
-
-cp .env.example .env   # 配置 LLM_BASE_URL / LLM_API_KEY / LLM_MODEL（可选 EMBED_*）
-
-rf doctor
-```
-
-### 常用命令
-
-```bash
-# 在目标仓库下构建索引（无 API key 时可构建符号与关键词索引；配置 EMBED_* 后启用 semantic_search）
-cd /path/to/your/repo && rf index
-
-# 相对 main 审查当前分支
-rf review --base main
-
-# 更多入口
-rf review --commits HEAD~3..HEAD
-rf review --diff fix.patch
-rf review --only concurrency,memory
-rf review --fail-on high --format all --out review-out
-
-# 反馈闭环（误报抑制 / 已确认 bug 范例）
-rf feedback <findingId> accept
-rf feedback <findingId> reject
-
-# 评测
-rf eval --dir benchmarks/cases --configs all --out benchmarks/results
-
-# 从真实 fix 提交生成基准 case
-tsx scripts/seed-from-commit.ts /path/to/repo <fix-sha> --id my-case --category concurrency
-
-# 不调 LLM 验证管线 / 导出 prompt
-rf review --base main --dry-run --out dry-out
-
-# 回贴 PR / Gerrit
-rf review --base main --post github --pr 42
-rf review --base main --post gerrit --change 12345
-rf post --post github --pr 42
-```
-
-**CI 示例：** [`examples/github-actions/reviewforge.yml`](./examples/github-actions/reviewforge.yml)
-
-**说明：** 索引可在无对话 API key 时完成；`review` / `eval` 需要可用的 LLM provider。误报抑制支持仓库根目录 `.rfignore`（文件 glob）。
+- [💡 ReviewForge 是什么](#-reviewforge-是什么)
+- [✨ 核心特性](#-核心特性)
+- [🔎 系统架构](#-系统架构)
+- [🚀 快速开始](#-快速开始)
+- [🧰 CLI 命令速查](#-cli-命令速查)
+- [🔧 配置](#-配置)
+- [📊 评测结果（可复现）](#-评测结果可复现)
+- [📚 文档](#-文档)
+- [📜 路线图](#-路线图)
+- [🤝 贡献](#-贡献)
+- [📄 许可证](#-许可证)
 
 ---
 
-## 核心能力
+## 💡 ReviewForge 是什么
 
-| 方向 | 说明 |
-|------|------|
-| **编排** | 手写有状态图（LangGraph 风格）：节点、类型化共享状态、reducer、条件路由、并行扇入扇出、checkpoint、节点级错误隔离 |
-| **解析与上下文** | tree-sitter 多语言符号 + 调用关系；启发式 C++ 解析 fallback；可选向量 RAG |
-| **验证者** | 聚合前对每条 finding 用 diff 二次核验，压幻觉 |
-| **记忆** | 工作记忆 / 运行 checkpoint / 跨次反馈（误报库、已确认 bug few-shot、仓库画像） |
-| **静态分析** | clang-tidy、ruff、eslint、go vet，聚焦改动附近信号 |
-| **工程化** | Provider 重试与 fallback、JSON 修复重试、增量索引、响应缓存、`.reviewforge.json`、SARIF、退出码门禁、trace + Chart.js 看板 |
-| **Provider** | OpenAI 兼容抽象（Ollama / 内网网关等） |
+**ReviewForge** 是一个命令行 AI 代码审查 Agent。给它一个 **diff / 分支 / 提交范围**，它会：
 
-**语言支持简述：** C/C++ 带启发式符号与 clang-tidy；Rust / Go / Python 等按文件分块，走 LLM + RAG 审查路径（详见架构文档）。
+1. 结合**整个代码库的上下文**（tree-sitter 符号图 + 可选向量 RAG）、**项目规范**与**静态分析信号**（clang-tidy / ruff / eslint / go vet）自动拼装审查证据；
+2. 由**多个维度子 Agent 并行**审查（正确性 / 并发 / 内存 / 安全 / 性能 / 可维护性）；
+3. 用**验证者**在聚合前对每条结论做 **diff 依据复核**，压制幻觉与越界误报；
+4. 输出带行号、严重级别、置信度与修复建议的**结构化报告**（Markdown / JSON / SARIF），并能作为 **CI 门禁**或回贴到 **GitHub PR / Gerrit**。
+
+它专精 **C++/系统代码**（内存、并发、ABI、UB 等深坑），同时原生覆盖 **C / C++ / TypeScript / Python / Go / Rust / Java** 等语言的审查路径。
+
+> **为什么需要它？** 静态分析器（clang-tidy）精确但噪声大、不懂语义；通用 LLM 审查懂意图却只看 diff、易幻觉。ReviewForge 把两者**融合**，锚定在全仓库上下文之上，并配套**可量化评测**——行业对标 CodeRabbit、Cursor Bugbot、Greptile、Copilot Code Review。
+
+**状态：可运行。** 已实现 M1（多维审查）+ M2（评测与记忆闭环）+ M3（平台对接与 CI），并完成质量、性能与生产化增强。
 
 ---
 
-## 架构一览
+## ✨ 核心特性
+
+### 🧠 「双脑」融合：LLM 推理 × 确定性静态分析
+
+- LLM 负责语义理解与跨调用链推理，clang-tidy / ruff / eslint / go vet 提供**事实锚点**。
+- 静态分析命中只取**改动行附近**信号，交叉印证、降幻觉、补盲区；工具链缺失时自动降级为纯 LLM + RAG。
+
+### 🕸️ 全仓库上下文：符号图 + 向量 RAG
+
+- tree-sitter 多语言解析，抽取**符号 + 调用关系（callers / callees）**；启发式 C++ 解析作 fallback。
+- 索引可在**无 API key** 时构建（仅符号图 + 关键词检索）；配置 `EMBED_*` 后启用 `semantic_search` 语义检索。
+
+### 🧩 手写状态图编排（LangGraph 风格，零框架依赖）
+
+- 节点 + 类型化共享状态 + reducer + 条件路由 + **并行扇入扇出** + checkpoint + 节点级错误隔离。
+- 6 个维度子 Agent 并行 fan-out，结果经 reducer 扇入 Aggregator —— 审查天然是 map-reduce 图。
+
+### 🔬 验证者子 Agent：误报的主控制阀
+
+- 聚合前对每条候选 finding 做「假设 → 用 diff 二次核验」，无据则丢弃 / 降置信。
+
+### 🧷 三层记忆，越用越准
+
+- **工作记忆**（单次推理）· **运行 checkpoint**（可中断续跑 / 回放）· **跨次反馈闭环**：
+  误报指纹库（自动抑制）+ 已确认 bug 范例库（few-shot）+ 仓库画像（高发缺陷热点）。
+
+### 🏭 生产化 & 可观测
+
+- Provider 指数退避重试 + **fallback 链**、JSON 修复重试、增量索引、磁盘响应缓存、廉价模型分诊。
+- `.reviewforge.json` 配置、approve/request-changes 决策、**SARIF 2.1.0** 输出、退出码门禁、自身 CI。
+- trace 落盘 + 自带 Chart.js 看板；OpenAI 兼容 provider 抽象（可切 Ollama 离线 / 内网网关）。
+
+---
+
+## 🔎 系统架构
+
+<div align="center">
+
+<img src="./assets/reviewforge-pipeline.png" alt="ReviewForge pipeline" width="92%"/>
+
+</div>
+
+审查流水线分两条主路径：
+
+- **索引时（离线、增量）：** 仓库源码 → tree-sitter 解析 → 按符号分块 → 嵌入 → 向量索引 + 符号图。
+- **审查时（在线）：** diff → 切 hunk、映射改动符号 → 上下文构建（RAG + 符号图 + 静态分析 + 规范）→ **状态图**执行（Orchestrator 扇出 → 维度子 Agent 并行 → 验证者 → Aggregator 扇入）→ 输出 md/json/sarif + 门禁；过程中读写三层记忆。
+
+<details>
+<summary><strong>展开：完整数据流图（Mermaid）</strong></summary>
 
 ```mermaid
 flowchart LR
-    diff[diff / 分支 / 范围] --> ctx[上下文构建<br/>tree-sitter + RAG + 静态分析]
-    ctx --> triage[廉价模型分诊]
-    triage --> orch[Orchestrator]
-    subgraph dims[维度子 Agent]
-      d1[正确性] & d2[并发] & d3[内存] & d4[安全] & d5[性能] & d6[可维护性]
+    diff["diff / 分支 / 范围"] --> ctx["上下文构建<br/>tree-sitter 符号图<br/>+ 向量 RAG + 静态分析"]
+    ctx --> triage{"廉价模型分诊"}
+    triage --> orch["Orchestrator"]
+    subgraph dims["维度子 Agent（并行 fan-out）"]
+      direction TB
+      d1["正确性"]
+      d2["并发"]
+      d3["内存"]
+      d4["安全"]
+      d5["性能"]
+      d6["可维护性"]
     end
     orch --> dims
-    dims --> verify[验证者]
-    verify --> agg[聚合 / 去重 / 阈值]
-    agg --> out[md / json / sarif]
-    agg --> sink[GitHub / Gerrit]
-    agg --> mem[(记忆闭环)]
+    dims --> verify["验证者<br/>逐条核验 diff 依据"]
+    verify --> agg["聚合<br/>去重 / 置信阈值 / 抑制"]
+    agg --> out["报告 md / json / sarif"]
+    agg --> sink["GitHub PR / Gerrit 行内评论"]
+    agg --> mem[("记忆反馈闭环<br/>误报库 / 范例 / 画像")]
     mem -.few-shot.-> dims
+
+    classDef stage fill:#1e293b,stroke:#f97316,stroke-width:1px,color:#f8fafc;
+    classDef agent fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    classDef store fill:#0f172a,stroke:#22d3ee,color:#cffafe;
+    class diff,ctx,orch,verify,agg,out,sink stage;
+    class d1,d2,d3,d4,d5,d6 agent;
+    class mem store;
 ```
 
-更细的模块划分与工具列表见 [**架构设计**](./docs/ARCHITECTURE.md)。
+</details>
+
+更细的模块划分、ADR 与工具清单见 [**架构设计文档**](./docs/ARCHITECTURE.md)。
 
 ---
 
-## 文档
+## 🚀 快速开始
+
+### 📝 环境要求
+
+| 必需 | 可选（增强能力） |
+|---|---|
+| **Node.js** ≥ 18 | `compile_commands.json` + `.clang-tidy`（C++ 深度静态分析） |
+| **Git** 与待审查的本地仓库 | 嵌入模型配置 `EMBED_*`（启用语义检索） |
+| 可用的 LLM provider（OpenAI 兼容 / Ollama / 内网网关） | ruff / eslint / go vet（对应语言静态分析） |
+
+### ⚙️ 安装与自检
+
+```bash
+# 1. 安装依赖（如在公司网络，npm 需走系统代理）
+npm install
+
+# 2. 让 rf / reviewforge 命令全局可用
+npm link        # 或 npm install -g .
+
+# 3. 配置 provider
+cp .env.example .env   # 填入 LLM_BASE_URL / LLM_API_KEY / LLM_MODEL（及可选 EMBED_*）
+
+# 4. 自检
+rf doctor
+```
+
+### ▶️ 第一次审查
+
+```bash
+# 1. 在目标仓库下构建索引
+cd /path/to/your/repo && rf index
+
+# 2. 审查当前分支相对 main 的改动
+rf review --base main
+```
+
+> 索引可在**无对话 API key** 时构建；`review` / `eval` 需要可用的对话 provider。
+> 误报抑制支持仓库根目录的 `.rfignore`（文件 glob）。CI 模板见 [`examples/github-actions/reviewforge.yml`](./examples/github-actions/reviewforge.yml)。
+
+---
+
+## 🧰 CLI 命令速查
+
+| 命令 | 作用 |
+|---|---|
+| `rf index` | 在当前仓库构建/增量更新索引（符号图 + 可选向量） |
+| `rf review --base main` | 审查当前分支相对 `main` 的改动 |
+| `rf review --commits HEAD~3..HEAD` | 审查指定提交范围 |
+| `rf review --diff fix.patch` | 审查一个 patch 文件 |
+| `rf review --only concurrency,memory` | 只跑指定维度 |
+| `rf review --fail-on high --format all --out review-out` | CI 门禁 + 多格式输出（md/json/sarif） |
+| `rf review --base main --dry-run --out dry-out` | 不调 LLM，验证管线 / 导出各维度 prompt |
+| `rf feedback <findingId> accept\|reject` | 反馈闭环：确认真 bug（存范例）/ 标记误报（后续抑制） |
+| `rf eval --dir benchmarks/cases --configs all --out benchmarks/results` | 评测 + 消融实验 |
+| `rf review --base main --post github --pr 42` | 一步审查并回贴 GitHub PR 行内评论 |
+| `rf review --base main --post gerrit --change 12345` | 回贴 Gerrit change |
+| `rf post --post github --pr 42` | 复用上次 `last-review.json` 重贴 |
+| `rf doctor` | 环境与配置自检 |
+
+```bash
+# 从真实 fix 提交一键生成基准 case（无需手写 ground truth）
+tsx scripts/seed-from-commit.ts /path/to/repo <fix-sha> --id my-case --category concurrency
+```
+
+---
+
+## 🔧 配置
+
+通过环境变量（`.env`）或仓库根目录的 `.reviewforge.json` 配置：
+
+| 项 | 说明 |
+|---|---|
+| `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | 对话 provider（OpenAI 兼容）。可指向 OpenAI / 内网网关 / Ollama |
+| `EMBED_BASE_URL` / `EMBED_API_KEY` / `EMBED_MODEL` | 嵌入 provider（配置后启用 `semantic_search`） |
+| `RF_CACHE` | 响应缓存开关（`0` 关闭，用于测真实方差） |
+| `.reviewforge.json` | 维度开关、置信阈值、忽略规则、语言映射、分析器路径 |
+| `.rfignore` | 文件 glob 级别的误报/范围抑制 |
+
+---
+
+## 📊 评测结果（可复现）
+
+> 完整流水线（tree-sitter + 验证者 + 分诊 + 多语言静态分析）在 **10 个公开 case**
+> （spdlog C/C++ ×4、tidwall/gjson Go ×4、negative/clean ×2）上的消融。
+> 指标按 **缺陷组级别 + category-agnostic** 的 reviewer 口径统计，用本工具自带的
+> `aggregateMetrics` 重算，**可从公开仓库完全复现**。
+
+**v2（10 个公开 case）**
+
+| Config | Recall | Precision | F1 | FP/case | Localization |
+|---|---|---|---|---|---|
+| B-llm-only | 40.0% | 100% | 57.1% | 0.00 | 100% |
+| **+rag / full** | **60.0%** | **100%** | **75.0%** | **0.00** | 100% |
+
+**v3（10 个公开 case，复跑）**
+
+| Config | Recall | Precision | F1 | FP/case | Localization |
+|---|---|---|---|---|---|
+| B-llm-only | 40.0% | 80% | 53.3% | 0.10 | 100% |
+| **+rag / full** | **50.0%** | **100%** | **66.7%** | **0.00** | 100% |
+
+- **RAG 提升 recall**（v2 40→60%、v3 40→50%），并保持 **100% 精确率 / 近 0 误报**、100% 行号定位。
+- **诚实口径：** 单次 LLM 运行方差大（实测 recall ±19pt），可靠对比需 `--runs N` 多次取均值并固定缓存策略；单次消融的小差异落在噪声内。
+
+完整表格、原始 JSON、方差实验与复现说明见 [**benchmarks/results-public/**](./benchmarks/results-public/) 与 [**benchmarks/README.md**](./benchmarks/README.md)。内部专有 C++ 历史 case 的数字（Recall 87.5% / F1 82.4% / FP 0.67）仅作定性参考、**不可从本仓库复现**，详见 [docs/WRITEUP.md](./docs/WRITEUP.md) 与 [docs/EVAL_PLAN.md](./docs/EVAL_PLAN.md)。
+
+---
+
+## 📚 文档
 
 | 文档 | 内容 |
-|------|------|
-| [docs/WRITEUP.md](./docs/WRITEUP.md) | 项目综述（对外说明 / 简历向） |
-| [docs/PRD.md](./docs/PRD.md) | 产品需求 |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 架构与状态图设计 |
+|---|---|
+| [docs/WRITEUP.md](./docs/WRITEUP.md) | 项目综述（问题 / 架构 / 取舍 / 评测，对外说明向） |
+| [docs/PRD.md](./docs/PRD.md) | 产品需求文档（目标用户、功能优先级、里程碑） |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 架构与状态图设计、ADR、工具清单、数据流 |
 | [docs/EVAL_PLAN.md](./docs/EVAL_PLAN.md) | 评测计划与指标口径 |
-| [docs/IMPROVEMENTS.md](./docs/IMPROVEMENTS.md) | 改进路线图 |
+| [docs/IMPROVEMENTS.md](./docs/IMPROVEMENTS.md) | 改进路线图（P0–P6） |
 
 ---
 
-## 评测与可复现结果
+## 📜 路线图
 
-公开子集在 **10 个 case**（spdlog C/C++ ×4、tidwall/gjson Go ×4、negative/clean ×2）上对比 **纯 LLM** 与 **+RAG / full** 配置；指标按 **缺陷组级别、与类别无关** 的 reviewer 口径统计，可用仓库内工具复算。
+- [x] **M1** 多维审查 MVP（索引 + 上下文 + 状态图编排 + 聚合 + clang-tidy 融合 + md/json + 门禁）
+- [x] **M2** 记忆闭环 + 可量化评测（三层记忆 + 评测 harness + 误报抑制 + SARIF）
+- [x] **M3** 平台对接（GitHub / Gerrit 回贴、CI 模板、多语言）
+- [ ] 结构化（function-calling）finding 输出
+- [ ] 更大规模多语言基准集 + 置信区间
+- [ ] 更丰富的跨文件调用图与类型解析
+- [ ] 增量 PR-update 审查 + 托管式 tracing
 
-**结论摘要（公开子集）：** RAG 在控制误报的前提下提升 recall；单次跑动方差大，对比应多次取均值并固定缓存策略。完整表格、原始 JSON 与复现说明见 [**benchmarks/results-public/**](./benchmarks/results-public/) 与 [**benchmarks/README.md**](./benchmarks/README.md)。
-
-内部专有 C++ 历史 case 的数字仅作定性参考，**不可从本仓库复现**；详细叙述仍保留在 [docs/WRITEUP.md](./docs/WRITEUP.md) 与评测计划中，避免在首页 README 重复长表。
-
----
-
-## 技术栈
-
-TypeScript / Node（ESM）· tree-sitter · 本地向量检索与符号图 · 手写状态图编排 · clang-tidy 融合 · SARIF / CI
+详见 [docs/IMPROVEMENTS.md](./docs/IMPROVEMENTS.md)。
 
 ---
 
-## 许可证
+## 🤝 贡献
 
-[MIT License](./LICENSE)
+欢迎 issue 与 PR。开发相关命令：
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # vitest
+npm run build       # 编译到 dist/
+```
+
+技术栈：TypeScript / Node（ESM）· tree-sitter · 本地向量检索与符号图 · 手写状态图编排 · clang-tidy / ruff / eslint / go vet 融合 · SARIF 输出 + 退出码门禁。
+
+---
+
+## 📄 许可证
+
+本项目以 [MIT License](./LICENSE) 开源。

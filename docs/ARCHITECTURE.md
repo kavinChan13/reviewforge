@@ -8,6 +8,12 @@
 
 ## 1. 系统总览
 
+<div align="center">
+  <img src="../assets/reviewforge-pipeline.png" alt="ReviewForge pipeline" width="92%"/>
+</div>
+
+> 上图为审查流水线的高层概览；下方 Mermaid 为含工具层、记忆层与 provider 的完整数据流。
+
 ```mermaid
 flowchart TB
     subgraph CLI["CLI 层"]
@@ -87,6 +93,17 @@ flowchart TB
     EMB -.索引时.-> VEC
     AGG --> M3L
     AGG --> OUT
+
+    classDef cli fill:#0f172a,stroke:#38bdf8,color:#e0f2fe;
+    classDef pre fill:#1e293b,stroke:#f97316,color:#f8fafc;
+    classDef agent fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    classDef store fill:#0f172a,stroke:#22d3ee,color:#cffafe;
+    classDef out fill:#14532d,stroke:#4ade80,color:#dcfce7;
+    class C1,C2,C3 cli;
+    class DIFF,CTX,SA pre;
+    class ORCH,S1,S2,S3,S4,S5,S6,AGG agent;
+    class VEC,SYM,M1W,M2C,M3L,STATE,CKPT store;
+    class MD,JSON,SARIF,EXIT out;
 ```
 
 两条主路径：

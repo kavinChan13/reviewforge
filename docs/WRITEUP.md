@@ -1,5 +1,9 @@
 # ReviewForge — Project Writeup
 
+<div align="center">
+  <img src="../assets/reviewforge-banner.png" alt="ReviewForge" width="100%"/>
+</div>
+
 A multi-agent AI code-review system for C++/systems code (with multi-language support),
 built to be both a real tool and a demonstration of production AI-agent engineering.
 
@@ -13,8 +17,38 @@ context, with a measurable evaluation harness.
 
 ## Architecture (hand-rolled state graph)
 
+<div align="center">
+  <img src="../assets/reviewforge-pipeline.png" alt="ReviewForge pipeline" width="92%"/>
+</div>
+
 `diff → context (tree-sitter symbol graph + vector RAG + static-analysis signals) → triage →
 orchestrator → 6 dimension subagents (parallel) → verifier → aggregator → report / PR comments`
+
+```mermaid
+flowchart LR
+    diff["diff / branch / range"] --> ctx["context build<br/>symbol graph + RAG + static analysis"]
+    ctx --> triage{"cheap-model triage"}
+    triage --> orch["orchestrator"]
+    subgraph dims["dimension subagents (parallel)"]
+      direction TB
+      d1["correctness"]
+      d2["concurrency"]
+      d3["memory"]
+      d4["security"]
+      d5["performance"]
+      d6["maintainability"]
+    end
+    orch --> dims --> verify["verifier<br/>re-check vs diff"]
+    verify --> agg["aggregate<br/>dedupe / threshold / suppress"]
+    agg --> out["report md / json / sarif"]
+    agg --> mem[("feedback memory")]
+    mem -.few-shot.-> dims
+
+    classDef stage fill:#1e293b,stroke:#f97316,color:#f8fafc;
+    classDef agent fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    class diff,ctx,orch,verify,agg,out stage;
+    class d1,d2,d3,d4,d5,d6 agent;
+```
 
 - **No LangChain/LangGraph dependency** — the orchestration is a hand-written stateful graph
   (typed shared state, reducer, conditional routing, parallel fan-in/fan-out, checkpointing,
