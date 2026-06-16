@@ -18,12 +18,20 @@ export interface SymbolGraphData {
   qualifiedReferences?: Record<string, ReferenceSite[]>;
 }
 
+/** Own-property lookup, safe against keys that collide with Object.prototype. */
+function ownGet<T>(obj: Record<string, T> | undefined, key: string): T | undefined {
+  if (!obj) return undefined;
+  return Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
+}
+
 export function buildSymbolGraph(
   symbols: CodeSymbol[],
   references: Record<string, ReferenceSite[]> = {},
   qualifiedReferences: Record<string, ReferenceSite[]> = {},
 ): SymbolGraphData {
-  const definitions: Record<string, CodeSymbol[]> = {};
+  // Prototype-free map: a symbol named `toString`/`constructor`/etc. must not
+  // resolve to an inherited Object.prototype member.
+  const definitions: Record<string, CodeSymbol[]> = Object.create(null);
   for (const s of symbols) {
     (definitions[s.name] ??= []).push(s);
   }
@@ -36,7 +44,7 @@ export class SymbolGraph {
   constructor(private readonly data: SymbolGraphData) {}
 
   findDefinition(name: string): CodeSymbol[] {
-    return this.data.definitions[name] ?? [];
+    return ownGet(this.data.definitions, name) ?? [];
   }
 
   /**
@@ -47,10 +55,10 @@ export class SymbolGraph {
    */
   findReferences(name: string, qualifier?: string): ReferenceSite[] {
     if (qualifier && this.data.qualifiedReferences) {
-      const q = this.data.qualifiedReferences[`${qualifier}.${name}`];
+      const q = ownGet(this.data.qualifiedReferences, `${qualifier}.${name}`);
       if (q && q.length > 0) return q.slice(0, MAX_REFS);
     }
-    return (this.data.references?.[name] ?? []).slice(0, MAX_REFS);
+    return (ownGet(this.data.references, name) ?? []).slice(0, MAX_REFS);
   }
 
   /**
@@ -61,9 +69,9 @@ export class SymbolGraph {
    * Falls back to all definitions of `name` when nothing matches.
    */
   resolveQualifiedDefinition(qualifier: string, name: string): CodeSymbol[] {
-    const methodDefs = this.data.definitions[name] ?? [];
+    const methodDefs = ownGet(this.data.definitions, name) ?? [];
     if (methodDefs.length <= 1) return methodDefs;
-    const typeDefs = this.data.definitions[qualifier] ?? [];
+    const typeDefs = ownGet(this.data.definitions, qualifier) ?? [];
     if (typeDefs.length === 0) return methodDefs;
     const typeFiles = new Set(typeDefs.map((d) => d.file));
     // Prefer methods defined inside the type's file, or textually enclosed by

@@ -113,8 +113,11 @@ export async function buildIndex(
   const fileHashes: Record<string, string> = {};
   const reusedVectors: VectorRecord[] = [];
   const chunksToEmbed: CodeChunk[] = [];
-  const references: Record<string, ReferenceSite[]> = {};
-  const qualifiedReferences: Record<string, ReferenceSite[]> = {};
+  // Prototype-free maps: callee/qualifier names from real code can collide with
+  // Object.prototype members (e.g. a method named `toString`/`valueOf`), which
+  // would make `map[name] ??= []` resolve to an inherited function and crash.
+  const references: Record<string, ReferenceSite[]> = Object.create(null);
+  const qualifiedReferences: Record<string, ReferenceSite[]> = Object.create(null);
   const MAX_REFS_PER_NAME = 50;
   let reusedFiles = 0;
 
