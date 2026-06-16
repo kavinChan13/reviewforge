@@ -115,38 +115,236 @@ flowchart TB
 ## 2. 编排：手写的「有状态图」（LangGraph-style，不依赖库）
 
 > 决策：**不引入 LangChain/LangGraph 库**，但**显式按它们形式化的「agent = 有状态图」范式来设计**。这样既具备该架构思想，又保留最大控制力与可解释性，依赖最轻——与同类手写 agent 项目一致。
+>
+> 运行时实现仅 ~70 行（`src/agent/graph.ts`），图的**拓扑、节点、reducer、路由**全部在 `src/agent/orchestrator.ts` 里以数据形式声明。下文先给范式映射，再用四张图分别讲清**图拓扑、调度时序、节点内微循环、状态归并**四个视角。
 
 ### 2.1 范式要素（我们手写实现的）
-| 图概念 | 在 ReviewForge 的落地 |
-|---|---|
-| **节点 Node** | Orchestrator、6 个维度子 Agent、Aggregator，各是一个 `async (state) => Partial<state>` 函数 |
-| **共享状态 State** | `ReviewState`（改动集、上下文包、各维度 findings、最终 findings、元数据），类型化（zod） |
-| **Reducer** | 定义各节点产出如何并入状态（如 findings 用"追加"，元数据用"合并"）——并行节点结果可安全归并 |
-| **边 Edge / 条件路由** | Orchestrator 依据改动特征**条件选择**要激活哪些维度节点；Aggregator 在全部维度完成后触发 |
-| **并行 fan-out / fan-in** | 维度子 Agent 并发执行（`Promise.all` + 并发上限），结果经 reducer 扇入 Aggregator |
-| **环 Cycle** | 单个子 Agent 内部是 tool-calling 循环（LLM↔工具，直到无 tool_use 或达上限）——图节点内的微循环 |
-| **Checkpoint** | 每个节点完成后持久化 `ReviewState` 快照，支持中断续跑与回放复盘 |
+| 图概念 | 在 ReviewForge 的落地 | 代码位置 |
+|---|---|---|
+| **节点 Node** | Orchestrator/Triage、6 个维度子 Agent、Verifier、Aggregator，各是一个 `run(state) => Promise<Partial<state>>` 函数 | `orchestrator.ts` |
+| **共享状态 State** | `ReviewState`（runId、上下文包、各维度 findings、最终 findings、usage、trace），类型化 | `state.ts` |
+| **Reducer** | 定义各节点产出如何并入状态：`dimensionFindings` 合并、`findings` 替换、`usage` 累加、`trace` 追加——并行节点结果可安全归并 | `state.ts:reduce` |
+| **边 Edge / 分层** | 不用显式 edge 列表，而用**节点的 `layer` 序号**表达依赖：低层先跑、同层并行；层与层之间是天然的 barrier | `graph.ts:runGraph` |
+| **条件路由 shouldRun** | 每个节点可带 `shouldRun(state)`：Triage 据改动特征**预选维度**；Verifier 仅在「存在候选 findings」时触发 | `graph.ts` / `orchestrator.ts` |
+| **并行 fan-out / fan-in** | 同层维度子 Agent 并发执行（自写 `mapWithConcurrency` + `RF_CONCURRENCY` 上限），结果经 reducer 扇入下一层 | `graph.ts:mapWithConcurrency` |
+| **环 Cycle** | 单个子 Agent 内部是 tool-calling 循环（LLM↔工具，直到无 tool_use 或达 `maxIter`）——图节点内的微循环 | `runtime.ts:runAgentLoop` |
+| **错误隔离** | 单节点抛错被 `try/catch` 兜成空 `Partial`，**不中断整层**，其他维度照常产出 | `graph.ts:runGraph` |
+| **Checkpoint** | 每层完成后持久化 `ReviewState` 快照，支持中断续跑与回放复盘 | `checkpoint.ts` |
 
-### 2.2 最小执行器（概念，非最终代码）
-```ts
-// 概念示意：手写的小型图运行时
-interface Node { name: string; run(s: ReviewState): Promise<Partial<ReviewState>>; }
-async function runGraph(nodes, edges, initial) {
-  let state = initial;
-  for (const layer of topo(edges)) {            // 拓扑分层
-    const results = await mapWithConcurrency(    // 同层并行 fan-out
-      layer.filter(n => shouldRun(n, state)),    // 条件路由
-      n => n.run(state)
+### 2.2 图拓扑：4 层 map-reduce
+
+审查天然是「一份 diff → 多维并行深挖 → 汇总成一份报告」的 map-reduce 形态。我们把它编码成一张**按层组织的有向无环图**：第 0 层（图外预处理）做编排选维度，第 1 层并行扇出，第 2/3 层逐级收敛。
+
+```mermaid
+flowchart TB
+    START([rf review 启动]) --> TRIAGE
+
+    subgraph L0["第 0 层 · 编排（图外预处理 / orchestrator.ts）"]
+        direction TB
+        CTX["上下文包 ReviewContext<br/>diff + 改动符号 + 预取正文/调用者 + 静态分析信号"]
+        TRIAGE["Orchestrator · Triage<br/>廉价模型按 diff 特征预选维度<br/>（失败则全开；correctness 必选）"]
+        CTX --> TRIAGE
+    end
+
+    TRIAGE -->|selectedCategories<br/>→ 决定建哪些节点 & shouldRun| BUILD{{"建图：每个激活维度 = 一个 layer-1 节点"}}
+
+    subgraph L1["第 1 层 · 维度子 Agent（并行 fan-out，并发 ≤ RF_CONCURRENCY）"]
+        direction LR
+        D1["dim:correctness"]
+        D2["dim:concurrency"]
+        D3["dim:memory"]
+        D4["dim:security"]
+        D5["dim:performance"]
+        D6["dim:maintainability"]
+    end
+
+    subgraph L2["第 2 层 · Verifier（条件节点）"]
+        VER["verifier<br/>shouldRun: 存在候选 findings 才跑<br/>对照 diff 复核：剔除明显幻觉 / 下调置信"]
+    end
+
+    subgraph L3["第 3 层 · Aggregator"]
+        AGG["aggregator<br/>置信阈值 + 抑制(误报库/.rfignore)<br/>跨维度近行去重 → 严重度/置信排序"]
+    end
+
+    BUILD --> D1 & D2 & D3 & D4 & D5 & D6
+    D1 & D2 & D3 & D4 & D5 & D6 -->|"reduce: dimensionFindings 合并"| VER
+    VER -->|"reduce: 用复核后集合替换"| AGG
+    AGG --> OUT([最终 findings → 报告 md/json/sarif + 门禁])
+
+    STATE[("共享状态 ReviewState<br/>每层结束 reduce + checkpoint")]
+    L1 -.读/写.-> STATE
+    L2 -.读/写.-> STATE
+    L3 -.读/写.-> STATE
+
+    classDef l0 fill:#1e293b,stroke:#f97316,color:#f8fafc;
+    classDef l1 fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    classDef l2 fill:#3f2d57,stroke:#c084fc,color:#f3e8ff;
+    classDef l3 fill:#0f3d3e,stroke:#2dd4bf,color:#ccfbf1;
+    classDef store fill:#0f172a,stroke:#22d3ee,color:#cffafe;
+    class CTX,TRIAGE l0;
+    class D1,D2,D3,D4,D5,D6 l1;
+    class VER l2;
+    class AGG l3;
+    class STATE store;
+```
+
+要点：
+- **层 = 依赖**。`graph.ts` 把所有节点按 `layer` 去重排序后逐层执行，层间是天然 barrier（下一层一定看到上一层归并后的完整状态）。增删一层只是改节点的 `layer` 字段，无需维护 edge 列表。
+- **第 0 层在图外**：Triage 是一次廉价模型调用，产出 `selectedCategories`，进而决定第 1 层**到底实例化哪些节点**（被裁掉的维度根本不建节点，省 token）。这等价于 LangGraph 的「条件入边」。
+- **Verifier 是条件层**：它的 `shouldRun` 检查「当前是否存在任何候选 finding」，没有就整层跳过，直接进 Aggregator。
+
+### 2.3 调度时序：分层并行执行器
+
+`runGraph` 的执行语义——逐层取活跃节点、同层并行（带并发上限与错误隔离）、reduce 归并、checkpoint：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as runGraph(graph.ts)
+    participant N as 同层节点(并行)
+    participant R as reduce(state.ts)
+    participant CK as checkpoint
+
+    Note over G: layers = 节点 layer 去重后升序
+    loop 每一层 layer
+        G->>G: active = 该层中 shouldRun(state) 为真的节点
+        alt active 为空
+            G->>G: 跳过该层
+        else
+            Note over G,N: snapshot = state<br/>（同层所有节点看到同一份输入状态）
+            G->>N: mapWithConcurrency(active, RF_CONCURRENCY)
+            par 并发执行（上限内）
+                N->>N: try { node.run(snapshot) }
+                N-->>G: Partial<State>
+            and 失败隔离
+                N-->>G: catch → 记 stderr，返回 {}（不中断整层）
+            end
+            loop 每个 Partial
+                G->>R: reduce(state, partial)
+                R-->>G: 新 state
+            end
+            G->>CK: onLayerComplete(layer, state) 落盘快照
+        end
+    end
+    G-->>G: 返回最终 state
+```
+
+对应的核心实现（已落地，非伪代码）：
+
+```43:68:src/agent/graph.ts
+export async function runGraph<S>(opts: RunGraphOptions<S>): Promise<S> {
+  let state = opts.initial;
+  const layers = [...new Set(opts.nodes.map((n) => n.layer))].sort((a, b) => a - b);
+
+  for (const layer of layers) {
+    const active = opts.nodes.filter(
+      (n) => n.layer === layer && (!n.shouldRun || n.shouldRun(state)),
     );
-    state = reduce(state, results);              // reducer 扇入
-    await checkpoint(state);                     // 持久化
+    if (active.length === 0) continue;
+
+    const snapshot = state; // nodes in a layer see the same input state
+    // Isolate failures: one node's error must not abort the whole layer.
+    const partials = await mapWithConcurrency(active, opts.concurrency, async (node) => {
+      try {
+        return await node.run(snapshot);
+      } catch (err) {
+        const msg = (err as Error)?.message ?? String(err);
+        process.stderr.write(`  [node ${node.name}] failed: ${msg}\n`);
+        return {} as Partial<S>;
+      }
+    });
+    for (const p of partials) state = opts.reduce(state, p);
+    await opts.onLayerComplete?.(layer, state);
   }
   return state;
 }
 ```
-（实际实现会更完善：错误隔离、单节点重试、流式进度、并发上限、token 预算。）
 
-### 2.3 可观测性
+### 2.4 节点内的「环」：tool-calling 微循环
+
+图的节点之间是 DAG（无环），但**单个维度子 Agent 节点内部**是一个有界循环：反复「LLM 推理 → 调只读工具 → 喂回结果」，直到模型不再请求工具或达 `maxIter`（默认 8），最后把 JSON findings 交还节点。这正是「图节点内嵌微循环」的范式。
+
+```mermaid
+stateDiagram-v2
+    [*] --> 组装消息: system(维度prompt)+user(diff/上下文/few-shot)
+    组装消息 --> LLM推理
+    LLM推理 --> 判断: 返回 content + toolCalls
+    判断 --> 收尾: 无 tool_use
+    判断 --> 执行工具: 有 tool_use
+    执行工具 --> 追加结果: 只读工具 read_file/find_references/semantic_search/recall_memory…
+    追加结果 --> LLM推理: i < maxIter
+    追加结果 --> 强制收尾: i 达 maxIter（显式索要最终答案）
+    收尾 --> 解析JSON: parseFindings
+    强制收尾 --> 解析JSON
+    解析JSON --> JSON修复: 无解析结果但疑似 findings → 再要一次严格 JSON
+    解析JSON --> [*]: RawFinding[]
+    JSON修复 --> [*]: RawFinding[]
+```
+
+> 每轮累计 `promptTokens/completionTokens/toolCallCount`，连同耗时、产出数写入该节点的 trace 条目（见 §2.6）。
+
+### 2.5 状态归并：类型化 State + Reducer
+
+所有节点不直接互相调用，只通过**写回 `Partial<ReviewState>`、由 reducer 归并**来通信——这让并行节点的结果可安全合并，也让中断续跑成为可能（重放 checkpoint 即可）。不同字段的归并策略不同：
+
+```mermaid
+flowchart LR
+    subgraph IN["节点产出 Partial&lt;ReviewState&gt;"]
+        P1["dimensionFindings: {category: RawFinding[]}"]
+        P2["findings: Finding[]"]
+        P3["usage: {prompt, completion}"]
+        P4["trace: TraceEntry[]"]
+    end
+    subgraph RED["reduce(state, partial)"]
+        R1["合并 merge<br/>{...old, ...new}（按 category 键）"]
+        R2["替换 replace<br/>（仅 Aggregator 写）"]
+        R3["累加 sum"]
+        R4["追加 append"]
+    end
+    P1 --> R1
+    P2 --> R2
+    P3 --> R3
+    P4 --> R4
+    R1 & R2 & R3 & R4 --> S[("新的 ReviewState")]
+
+    classDef a fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    classDef b fill:#1e293b,stroke:#f97316,color:#f8fafc;
+    classDef s fill:#0f172a,stroke:#22d3ee,color:#cffafe;
+    class P1,P2,P3,P4 a;
+    class R1,R2,R3,R4 b;
+    class S s;
+```
+
+| 字段 | 归并策略 | 谁写 | 原因 |
+|---|---|---|---|
+| `dimensionFindings` | **合并**（按 category 键覆盖/新增） | 维度节点 / Verifier | 各维度互不相干键；Verifier 用复核后集合整体替换各键 |
+| `findings` | **替换** | 仅 Aggregator | 最终结果由唯一汇总节点产出 |
+| `usage` | **累加** | 所有 LLM 节点 | 全局 token 预算统计 |
+| `trace` | **追加** | 所有节点 | 完整保留每节点观测条目 |
+
+```37:55:src/agent/state.ts
+export function reduce(state: ReviewState, partial: Partial<ReviewState>): ReviewState {
+  const next: ReviewState = { ...state };
+  if (partial.dimensionFindings) {
+    next.dimensionFindings = { ...state.dimensionFindings, ...partial.dimensionFindings };
+  }
+  if (partial.findings) {
+    next.findings = partial.findings;
+  }
+  if (partial.usage) {
+    next.usage = {
+      promptTokens: state.usage.promptTokens + partial.usage.promptTokens,
+      completionTokens: state.usage.completionTokens + partial.usage.completionTokens,
+    };
+  }
+  if (partial.trace) {
+    next.trace = [...state.trace, ...partial.trace];
+  }
+  return next;
+}
+```
+
+### 2.6 可观测性
 不接 LangSmith，改用**轻量结构化 trace**：每个节点的输入摘要 / 工具调用 / token 用量 / 耗时 / 产出 findings 数，落 `.reviewforge/traces/<run>.jsonl`，可回放、可做 eval 的输入。需要**托管式可观测**时，配 `RF_TRACE_ENDPOINT`（可选 `RF_TRACE_TOKEN`）即把每次审查的 trace 以厂商中立的 JSON POST 到自有收集器/webhook——best-effort、失败不阻断审查，且**不引入 LangSmith 依赖**。
 
 ---
@@ -232,9 +430,9 @@ Markdown（人读）+ JSON（程序读）+ SARIF 2.1.0（业界标准，接 GitH
 ### 5.4 状态图运行时与 Agent `src/agent/`
 | 模块 | 职责 |
 |---|---|
-| `graph.ts` | 手写状态图运行时（节点/边/reducer/并行/checkpoint，§2.2） |
+| `graph.ts` | 手写状态图运行时（分层调度/并行/错误隔离/checkpoint，§2.2–§2.5） |
 | `state.ts` | `ReviewState` 定义 + reducer（zod） |
-| `orchestrator.ts` | Orchestrator 节点：选维度、扇出 |
+| `orchestrator.ts` | 编排：triage 选维度 + 构图（维度/verifier/aggregator 节点）+ 驱动 `runGraph`（§2.2–§2.5） |
 | `runtime.ts` | 子 Agent 内的通用 tool-calling 循环 |
 | `subagents/` | 各维度子 Agent（prompt + 工具白名单 + 严重度准则） |
 | `aggregator.ts` | Aggregator 节点：去重 / 排序 / FP 抑制 |
