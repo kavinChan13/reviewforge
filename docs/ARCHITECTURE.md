@@ -434,10 +434,10 @@ Markdown（人读）+ JSON（程序读）+ SARIF 2.1.0（业界标准，接 GitH
 | `state.ts` | `ReviewState` 定义 + reducer（zod） |
 | `orchestrator.ts` | 编排：triage 选维度 + 构图（维度/verifier/aggregator 节点）+ 驱动 `runGraph`（§2.2–§2.5） |
 | `runtime.ts` | 子 Agent 内的通用 tool-calling 循环 |
-| `subagents/` | 各维度子 Agent（prompt + 工具白名单 + 严重度准则） |
+| `subagents.ts` | 6 个维度子 Agent 定义（`focus` + 工具白名单）+ `buildSystemPrompt`（system prompt 在代码内动态生成，无独立 md 模板，见 §8） |
+| `lang_guidance.ts` | 按 diff 语言追加的 idiomatic gotcha 增强（cpp/c/ts/py/go/rust/java） |
 | `aggregator.ts` | Aggregator 节点：去重 / 排序 / FP 抑制 |
-| `tools/` | 工具实现（见 §7） |
-| `prompts/` | 各维度 system prompt（markdown，注入 cpp/perf-debug 判据） |
+| `tools.ts` | 工具实现（见 §7） |
 
 ### 5.5 记忆 `src/memory/`
 见 §6：`working.ts`（运行内）、`checkpoint.ts`（运行状态）、`store.ts`（长期：suppressions / bug 范例 / 仓库画像）。
@@ -486,16 +486,94 @@ Markdown（人读）+ JSON（程序读）+ SARIF 2.1.0（业界标准，接 GitH
 
 ## 8. 维度子 Agent 与严重度
 
-| 子 Agent | 关注 | 判据来源 |
-|---|---|---|
-| 正确性/逻辑 | 边界、空指针、错误处理、契约 | 通用 + cpp |
-| 并发/生命周期 | 数据竞争、锁序、悬垂引用 | `stl/concurrency`、`cpp`、`perf-debug` |
-| 内存/资源 | RAII、所有权、泄漏、double-free | `cpp`、`perf-debug` |
-| 安全 | 注入、不安全 API、整型溢出、UB | `cpp`、`perf-debug/security` |
-| 性能 | 多余拷贝/分配、热路径、复杂度 | `perf-debug`、`stl` |
-| 可维护性/测试 | 可读性、缺测试、API 设计 | architect/cpp |
+6 个维度子 Agent **同构**：同一份运行时（§2.4 的 tool-calling 微循环）、同一套只读工具白名单（§7），只在 **system prompt 的 `focus` 段**与**语言增强**上有别。它们**不是规则引擎**，而是「**专属 prompt 驱动 + 工具取证 + 静态分析/RAG 佐证**」的 LLM 审查专家——prompt 决定**关注什么、何时才允许报、置信度如何校准**，工具与外部信号提供**下结论所需的证据**。全部定义在单文件 `src/agent/subagents.ts`。
+
+### 8.1 单个子 Agent 的解剖：检测能力从何而来
+
+一个子 Agent 的"检测维度"由四层叠加而成，前两层是 prompt、后两层是运行时取证：
+
+```mermaid
+flowchart TB
+    subgraph PROMPT["① 静态 prompt（buildSystemPrompt，subagents.ts）"]
+        F["focus 段：本维度专属判据<br/>（要报什么 / 必须满足的前置条件 / 不准报什么）"]
+        COMMON["通用规范：把 diff 当不可信数据 · 每条 finding 必须锚定到<br/>diff 具体行作为根因 · 置信度校准（&lt;0.45 不输出）· 固定 JSON 输出 schema"]
+    end
+    subgraph LANG["② 语言增强（lang_guidance.ts，按 diff 语言追加）"]
+        LG["cpp / c / ts / tsx / py / go / rust / java 的 idiomatic gotcha 列表"]
+    end
+    subgraph CTX["③ user prompt 注入的预置上下文（orchestrator.ts）"]
+        PRE["改动 hunk + 改动符号完整正文 + 调用者 · 静态分析信号(clang-tidy) · few-shot 范例(recall_memory)"]
+    end
+    subgraph LOOP["④ 循环内按需取证（runtime.ts + 工具层 §7）"]
+        TOOLS["find_references/find_definition(符号图) · read_symbol/read_file ·<br/>get_static_analysis · semantic_search(向量 RAG) · search_code(ripgrep) · recall_memory"]
+    end
+    PROMPT --> LANG --> CTX --> LOOP --> OUT["RawFinding[]（含 evidence + confidence）"]
+
+    classDef p fill:#312e81,stroke:#818cf8,color:#e0e7ff;
+    classDef l fill:#1e293b,stroke:#f97316,color:#f8fafc;
+    classDef c fill:#0f3d3e,stroke:#2dd4bf,color:#ccfbf1;
+    classDef o fill:#14532d,stroke:#4ade80,color:#dcfce7;
+    class F,COMMON p;
+    class LG l;
+    class PRE c;
+    class TOOLS,OUT o;
+```
+
+> 因此**纯 prompt 只是第①②层**；真正区分本系统与"丢给 LLM 读 diff"的，是③④层——符号图给的精确调用关系、clang-tidy 给的结构化事实信号、向量索引给的语义近邻（RAG），以及长期记忆给的 few-shot 范例。RAG/静态分析缺失时自动降级为纯 LLM（§ADR-7），不阻塞。
+
+### 8.2 各维度关注与判据来源
+
+| 子 Agent | 关注 | 必须满足的前置条件（prompt 硬约束） | 判据来源 |
+|---|---|---|---|
+| 正确性/逻辑 | 边界、空指针、错误处理、API 契约 | 根因是 diff 中某行；对照 `find_references` 看调用方用法 | 通用 + cpp |
+| 并发/生命周期 | 数据竞争、锁序、悬垂引用、TOCTOU | 须同时可见 (a) 触及跨线程共享状态 (b) 移除/削弱了同步 | `cpp` 并发段、clang-tidy `concurrency-*` |
+| 内存/资源 | RAII、所有权、泄漏、double-free | 须引用 diff 中具体分配/生命周期行，禁猜被调函数实现 | `cpp`、`c` |
+| 安全 | 注入、不安全 API、整型溢出、UB | 须指明 (a) 可见的不可信输入源 (b) 危险 sink | `cpp`、`c` |
+| 性能 | 多余拷贝/分配、热路径、O(n²) | 须能命名具体热路径、影响可测量；禁微优化/理论问题 | `perf` 判据、`stl` |
+| 可维护性/测试 | 可读性、缺测试、API 设计 | 仅非平凡行为变更(新分支/错误路径/公共 API)且未加测试才报缺测；不挑格式/命名 | architect/cpp |
 
 **严重度**：`critical / high / medium / low`；门禁默认 `--fail-on high`。
+
+### 8.3 实例：并发子 Agent 从 diff 到 finding 的端到端时序
+
+以 `concurrency` 维度为例（最能体现"不止 prompt"），串起 §2.2 图拓扑、§2.4 微循环与 §7 工具层：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ORCH as Orchestrator(orchestrator.ts)
+    participant NODE as dim:concurrency 节点(runAgentLoop)
+    participant LLM as Chat LLM
+    participant SYM as 符号图(index/store)
+    participant SA as 静态分析(clang-tidy)
+    participant VEC as 向量索引(RAG)
+    participant VER as Verifier
+    participant AGG as Aggregator
+
+    Note over ORCH: Triage 选中 concurrency 维度 → 实例化 layer-1 节点
+    ORCH->>NODE: system = buildSystemPrompt(concurrency.focus) + lang_guidance(cpp 并发段)<br/>user = diff + 改动符号正文/调用者 + clang-tidy 信号 + few-shot 范例
+    loop tool-calling 微循环（≤ maxIter=8）
+        NODE->>LLM: 当前消息 + 工具规格
+        LLM-->>NODE: toolCalls（请求取证）
+        NODE->>SYM: find_references(共享变量/锁) —— 看别处是否在锁外访问
+        SYM-->>NODE: 调用方/引用位置（AST 精确，非文本）
+        NODE->>SA: get_static_analysis(file) —— concurrency-*/bugprone-*
+        SA-->>NODE: 结构化命中（行 + 规则）
+        NODE->>VEC: semantic_search("同类同步模式") —— 语义近邻佐证
+        VEC-->>NODE: top-k 相关代码块
+        NODE->>LLM: 喂回工具结果，继续推理
+    end
+    LLM-->>NODE: 无 tool_use → 输出 JSON findings
+    Note over NODE: prompt 硬约束：须同时证明<br/>(a) 触及跨线程共享状态 (b) diff 削弱了同步，否则不报
+    NODE-->>ORCH: RawFinding[]（evidence: code + static_analysis + memory，confidence）
+    Note over ORCH: reduce 并入 dimensionFindings（§2.5）
+    ORCH->>VER: 存在候选 → 复核：对照 diff 剔除幻觉 / 下调置信
+    VER->>AGG: 复核后集合
+    AGG->>AGG: 阈值过滤 + 误报库/.rfignore 抑制 + 跨维度近行去重 + 排序
+    AGG-->>ORCH: 最终 finding → md/json/sarif + 门禁退出码
+```
+
+**这条链上"非纯 prompt"的关键点**：步骤 5/6 的 `find_references` 走 tree-sitter 符号图（精确调用关系而非 grep）；步骤 7/8 的 clang-tidy 命中作为结构化事实信号交叉印证（LLM 解释 + 工具佐证 → 高置信，§ADR-7）；步骤 9/10 的 `semantic_search` 是向量 RAG；产出后还有独立的 **Verifier 复核**与 **Aggregator 抑制/去重** 两道关把控误报（§ADR-9）。
 
 ---
 
@@ -570,9 +648,9 @@ reviewforge/
 │   │   ├── orchestrator.ts
 │   │   ├── runtime.ts          # 子 Agent tool-loop
 │   │   ├── aggregator.ts
-│   │   ├── subagents/
-│   │   ├── tools/
-│   │   └── prompts/
+│   │   ├── subagents.ts        # 6 维度定义 + buildSystemPrompt（prompt 代码内生成）
+│   │   ├── lang_guidance.ts    # 语言增强
+│   │   └── tools.ts
 │   ├── memory/                 # working / checkpoint / store(长期)
 │   ├── report/                 # finding/markdown/json/sarif/gate/sinks
 │   └── eval/                   # bench/runner/judge/metrics/ablation
