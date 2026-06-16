@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { extractSymbols } from "../src/index/parser.js";
-import { extractReferencesTreeSitter } from "../src/index/treesitter.js";
+import {
+  extractReferencesTreeSitter,
+  extractTypeBindingsTreeSitter,
+} from "../src/index/treesitter.js";
 import { buildSymbolGraph, SymbolGraph } from "../src/index/symbol_graph.js";
 
 describe("tree-sitter multi-language symbol extraction", () => {
@@ -51,6 +54,56 @@ describe("tree-sitter multi-language symbol extraction", () => {
     const graph = new SymbolGraph(buildSymbolGraph([], refs));
     expect(graph.findReferences("helper").length).toBe(2);
     expect(graph.hasReferences()).toBe(true);
+  });
+
+  it("captures the receiver for member calls (R3)", async () => {
+    const src = "def main():\n    logger.flush()\n    plain()\n";
+    const sites = await extractReferencesTreeSitter(src, "python");
+    expect(sites).not.toBeNull();
+    const flush = sites!.find((s) => s.callee === "flush");
+    expect(flush?.receiver).toBe("logger");
+    const plain = sites!.find((s) => s.callee === "plain");
+    expect(plain?.receiver).toBeUndefined();
+  });
+
+  it("infers same-file variable types (TypeScript)", async () => {
+    const src = "const a = new Logger();\nconst b: Cache = makeCache();\n";
+    const bindings = await extractTypeBindingsTreeSitter(src, "typescript");
+    expect(bindings).not.toBeNull();
+    const map = new Map(bindings!.map((b) => [b.variable, b.type]));
+    expect(map.get("a")).toBe("Logger");
+    expect(map.get("b")).toBe("Cache");
+  });
+
+  it("infers same-file variable types (Go)", async () => {
+    const src = "func f() {\n\tvar a T\n\tb := U{}\n\ta.run()\n\tb.run()\n}\n";
+    const bindings = await extractTypeBindingsTreeSitter(src, "go");
+    expect(bindings).not.toBeNull();
+    const map = new Map(bindings!.map((b) => [b.variable, b.type]));
+    expect(map.get("a")).toBe("T");
+    expect(map.get("b")).toBe("U");
+  });
+
+  it("disambiguates same-named methods via a qualified call graph (R3)", async () => {
+    // Two different receivers, both calling .run() — qualified graph separates them.
+    const qualified: Record<string, { file: string; line: number }[]> = {
+      "Logger.run": [{ file: "a.ts", line: 2 }],
+      "Cache.run": [{ file: "a.ts", line: 4 }, { file: "b.ts", line: 9 }],
+    };
+    const bare: Record<string, { file: string; line: number }[]> = {
+      run: [
+        { file: "a.ts", line: 2 },
+        { file: "a.ts", line: 4 },
+        { file: "b.ts", line: 9 },
+      ],
+    };
+    const graph = new SymbolGraph(buildSymbolGraph([], bare, qualified));
+    expect(graph.findReferences("run").length).toBe(3); // bare = all
+    expect(graph.findReferences("run", "Cache").length).toBe(2); // narrowed
+    expect(graph.findReferences("run", "Logger").length).toBe(1);
+    expect(graph.qualifiersFor("run").sort()).toEqual(["Cache", "Logger"]);
+    // Unknown qualifier falls back to the bare graph.
+    expect(graph.findReferences("run", "Nope").length).toBe(3);
   });
 
   it("returns line ranges spanning the definition body", async () => {

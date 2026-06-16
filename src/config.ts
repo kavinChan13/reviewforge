@@ -48,6 +48,23 @@ const RawConfig = z.object({
     .transform((v) => v !== "0" && v.toLowerCase() !== "false"),
   /** Max diff chars sent to a reviewer before truncation (P4c). */
   maxDiffChars: z.coerce.number().default(12000),
+  /**
+   * Use strict JSON-schema (function-calling) output for JSON-emitting calls
+   * (R1). Auto-falls back to json_object when the provider rejects schemas.
+   */
+  structuredOutput: z
+    .string()
+    .default("1")
+    .transform((v) => v !== "0" && v.toLowerCase() !== "false"),
+
+  /**
+   * Optional managed-tracing endpoint (R4b). When set, each review's trace is
+   * POSTed here (in addition to the local jsonl). Vendor-neutral HTTP — point it
+   * at your own collector / webhook; intentionally NOT coupled to LangSmith.
+   */
+  traceEndpoint: z.string().default(""),
+  /** Optional bearer token sent with trace exports. */
+  traceToken: z.string().default(""),
 });
 
 export type Config = z.infer<typeof RawConfig> & {
@@ -113,6 +130,9 @@ export function loadConfig(repoRoot: string = process.cwd()): Config {
     triageModel: pick(process.env.LLM_TRIAGE_MODEL, file.triageModel),
     cacheEnabled: process.env.RF_CACHE,
     maxDiffChars: pick(process.env.RF_MAX_DIFF_CHARS, file.maxDiffChars),
+    structuredOutput: process.env.RF_STRUCTURED_OUTPUT,
+    traceEndpoint: process.env.RF_TRACE_ENDPOINT,
+    traceToken: process.env.RF_TRACE_TOKEN,
   });
 
   // Embeddings fall back to the chat endpoint/key when unset.

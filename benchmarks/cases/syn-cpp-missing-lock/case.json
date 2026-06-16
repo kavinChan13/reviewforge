@@ -1,0 +1,16 @@
+{
+  "id": "syn-cpp-missing-lock",
+  "description": "Counter::inc() mutates shared state without taking the mutex other methods use (data race).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "counter.cpp",
+      "line": 7,
+      "category": "concurrency",
+      "severity": "high",
+      "note": "inc() increments value++ without locking m, unlike get()"
+    }
+  ]
+}

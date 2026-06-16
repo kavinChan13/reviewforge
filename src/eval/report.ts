@@ -35,8 +35,16 @@ function pct(n: number): string {
   return (n * 100).toFixed(1) + "%";
 }
 
-function pctStat(s: { mean: number; std: number }): string {
-  return `${(s.mean * 100).toFixed(1)}% ± ${(s.std * 100).toFixed(1)}%`;
+/** Mean ± 95% CI half-width (falls back to ± std when CI unavailable). */
+function pctStat(s: { mean: number; std: number; ci95?: number }): string {
+  const margin = s.ci95 ?? s.std;
+  return `${(s.mean * 100).toFixed(1)}% ± ${(margin * 100).toFixed(1)}%`;
+}
+
+/** Mean ± 95% CI half-width for a raw (non-percentage) count metric. */
+function numStat(s: { mean: number; std: number; ci95?: number }): string {
+  const margin = s.ci95 ?? s.std;
+  return `${s.mean.toFixed(2)} ± ${margin.toFixed(2)}`;
 }
 
 export function renderEvalMarkdown(runs: AblationRun[]): string {
@@ -49,6 +57,8 @@ export function renderEvalMarkdown(runs: AblationRun[]): string {
   lines.push("## Ablation comparison");
   lines.push("");
   if (anyMulti) {
+    lines.push("_Spread shown as mean ± 95% confidence interval (Student's t)._");
+    lines.push("");
     lines.push(
       "| Config | Runs | Recall | Precision | F1 | FP/case | Localization |",
     );
@@ -58,7 +68,7 @@ export function renderEvalMarkdown(runs: AblationRun[]): string {
         const m = r.multiRun;
         lines.push(
           `| ${r.config} | ${m.runs} | ${pctStat(m.recall)} | ${pctStat(m.precision)} | ` +
-            `${pctStat(m.f1)} | ${m.falsePositivesPerCase.mean.toFixed(2)} ± ${m.falsePositivesPerCase.std.toFixed(2)} | ` +
+            `${pctStat(m.f1)} | ${numStat(m.falsePositivesPerCase)} | ` +
             `${pctStat(m.localizationAccuracy)} |`,
         );
       } else {

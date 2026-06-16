@@ -80,6 +80,17 @@ export class OpenAICompatChatProvider implements ChatProvider {
         },
       }));
       body.tool_choice = "auto";
+    } else if (req.responseSchema) {
+      // Strict JSON-schema output (R1). Falls back to json_object upstream when
+      // the gateway rejects it (see structured.ts capability detection).
+      body.response_format = {
+        type: "json_schema",
+        json_schema: {
+          name: req.responseSchema.name,
+          schema: req.responseSchema.schema,
+          strict: true,
+        },
+      };
     } else if (req.responseFormatJson) {
       body.response_format = { type: "json_object" };
     }

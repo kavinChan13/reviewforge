@@ -1,0 +1,16 @@
+{
+  "id": "syn-py-resource-leak",
+  "description": "Opens a file without closing it / using a context manager (resource leak).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "reader.py",
+      "line": 2,
+      "category": "memory",
+      "severity": "medium",
+      "note": "open() result never closed; use `with open(...)`"
+    }
+  ]
+}

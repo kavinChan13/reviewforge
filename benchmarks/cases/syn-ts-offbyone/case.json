@@ -1,0 +1,16 @@
+{
+  "id": "syn-ts-offbyone",
+  "description": "Off-by-one index: arr[arr.length] is always undefined.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "last.ts",
+      "line": 2,
+      "category": "correctness",
+      "severity": "high",
+      "note": "should be arr[arr.length - 1]"
+    }
+  ]
+}

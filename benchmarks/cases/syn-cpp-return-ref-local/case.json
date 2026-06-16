@@ -1,0 +1,16 @@
+{
+  "id": "syn-cpp-return-ref-local",
+  "description": "Returns a reference to a function-local std::string (dangling reference).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "dangling.cpp",
+      "line": 5,
+      "category": "memory",
+      "severity": "high",
+      "note": "return msg; — reference to local outlives the function"
+    }
+  ]
+}

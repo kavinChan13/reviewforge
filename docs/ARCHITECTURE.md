@@ -147,7 +147,7 @@ async function runGraph(nodes, edges, initial) {
 （实际实现会更完善：错误隔离、单节点重试、流式进度、并发上限、token 预算。）
 
 ### 2.3 可观测性
-不接 LangSmith，改用**轻量结构化 trace**：每个节点的输入摘要 / 工具调用 / token 用量 / 耗时 / 产出 findings 数，落 `.reviewforge/traces/<run>.jsonl`，可回放、可做 eval 的输入。
+不接 LangSmith，改用**轻量结构化 trace**：每个节点的输入摘要 / 工具调用 / token 用量 / 耗时 / 产出 findings 数，落 `.reviewforge/traces/<run>.jsonl`，可回放、可做 eval 的输入。需要**托管式可观测**时，配 `RF_TRACE_ENDPOINT`（可选 `RF_TRACE_TOKEN`）即把每次审查的 trace 以厂商中立的 JSON POST 到自有收集器/webhook——best-effort、失败不阻断审查，且**不引入 LangSmith 依赖**。
 
 ---
 
@@ -400,6 +400,9 @@ reviewforge/
 | `RF_DATA_DIR` | `./.reviewforge` | 索引/记忆/trace |
 | `RF_MIN_CONFIDENCE` | `0.5` | 误报抑制阈值 |
 | `RF_CONCURRENCY` | `3` | 维度子 Agent 并发上限 |
+| `RF_STRUCTURED_OUTPUT` | `1` | JSON-schema 强约束输出（探测失败自动回落 json_object） |
+| `RF_TRACE_ENDPOINT` | （空） | 托管式 tracing 收集器；设置后每次审查 trace POST 到此 |
+| `RF_TRACE_TOKEN` | （空） | trace 导出的可选 Bearer token |
 
 离线示例（Ollama）：`LLM_BASE_URL=http://localhost:11434/v1`、`EMBED_MODEL=nomic-embed-text`。
 

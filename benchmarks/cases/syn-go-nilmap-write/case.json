@@ -1,0 +1,16 @@
+{
+  "id": "syn-go-nilmap-write",
+  "description": "Writes to a nil map (runtime panic).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "store.go",
+      "line": 5,
+      "category": "correctness",
+      "severity": "high",
+      "note": "m is a nil map; m[\"a\"]=1 panics — needs make(map...)"
+    }
+  ]
+}

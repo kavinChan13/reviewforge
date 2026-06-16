@@ -1,7 +1,7 @@
 # ReviewForge 改进路线图
 
 > 目标：按**性价比（影响力 ÷ 工作量）**依次推进；定位升级为**多语言**（C++ + TypeScript/Python/Go）。  
-> 当前基线：~5k 行 TS、52 源文件、77 单测；真实评测 Recall 87.5% / F1 82.4% / FP 0.67 per PR（3 个内部 C++ case，category-agnostic）。  
+> 当前基线：~5k 行 TS、57 源文件、114 单测；真实评测 Recall 87.5% / F1 82.4% / FP 0.67 per PR（3 个内部 C++ case，category-agnostic）。  
 > 状态：**P0–P5 大部分已落地**（M1–M3 已交付）；剩余未完项见文末「剩余 roadmap」。
 
 工作量记号：**S** ≤ 半天 · **M** 1–2 天 · **L** 多天。影响力：**H/M/L**。
@@ -125,8 +125,8 @@ P1 是把"能跑"变成"真的准"的关键，且 tree-sitter 一举解决多语
 
 | # | 项 | 现状 | 说明 |
 |---|---|---|---|
-| R1 | **结构化（function-calling）finding 输出**（P5.1） | 部分 | 现用宽松 `response_format: json_object` + 容错解析；尚未用 JSON-schema / tool 强约束 |
-| R2 | **更大规模多语言基准 + 置信区间**（P3.1） | 未做 | 当前 10 个公开 case；`metrics.ts` 有 mean±std，但无置信区间 |
-| R3 | **更丰富跨文件调用图 + 类型解析**（P1.2 增强） | 部分 | 已有 callers/callees；缺跨文件类型解析 |
-| R4 | **增量 PR-update 审查 + 托管 tracing**（P6 增强） | 未做 | 现为全量重审；trace 为本地 `jsonl`，非托管 |
-| R5 | **eval 回归门禁接入自动化 CI**（P5.3 增强） | 部分 | `--baseline` 门禁已实现；自身 CI 仅 typecheck + 单测，未接入 eval 门禁 |
+| R1 | **结构化（function-calling）finding 输出**（P5.1） | ✅ 已做 | `chatJson`（`agent/structured.ts`）用 `response_format: json_schema` 强约束 findings/verifier/triage 输出，按 provider 探测失败自动回落 `json_object`；`RF_STRUCTURED_OUTPUT` 开关 |
+| R2 | **更大规模多语言基准 + 置信区间**（P3.1） | 大部分 | 置信区间已做：`describe()` 输出 95% CI（t 分布），报告/看板按 mean ± CI 展示；基准集已从 10 扩到 24（11 个自包含 synthetic bug + 5 个 negative，覆盖 C++/Py/Go/TS/Java）；继续向 50 + 真实 seed 历史缺陷扩容仍可推进 |
+| R3 | **更丰富跨文件调用图 + 类型解析**（P1.2 增强） | ✅ 已做 | receiver 限定调用图 + 同文件变量类型推断（`type binding` query）+ import 别名归一（`imports.ts`）+ 跨文件 `Type.method` 定义解析（`resolveQualifiedDefinition`，链接 .h/.cpp 分离定义）；`find_references` / `read_symbol` 支持 `qualifier` 消歧。完整泛型/重载决议仍非目标（按 ROI 刻意不做） |
+| R4 | **增量 PR-update 审查 + 托管 tracing**（P6 增强） | ✅ 已做 | 增量：`rf review --incremental` 按 `review-state.json` 记录上次已审 SHA，仅审 `lastSha..HEAD`，rebase/force-push 自动回退全量。托管 tracing：`exportTrace`（`trace_export.ts`）在本地 jsonl 之外，按 `RF_TRACE_ENDPOINT` 将 trace POST 到自有 HTTP 收集器——厂商中立、best-effort，**不引入 LangSmith** 依赖（遵守 ADR） |
+| R5 | **eval 回归门禁接入自动化 CI**（P5.3 增强） | ✅ 已做 | 新增 `.github/workflows/eval.yml`：手动 `workflow_dispatch` + 每周定时，按 secrets 配置守卫；锁定基线 cohort（`--only`），跑 `rf eval --baseline …/v3/report.json`，回归即非零退出阻断，并上传报告 artifact |

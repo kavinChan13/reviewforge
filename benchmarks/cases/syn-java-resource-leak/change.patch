@@ -1,0 +1,14 @@
+diff --git a/Reader.java b/Reader.java
+new file mode 100644
+index 0000000..aaaaaaa
+--- /dev/null
++++ b/Reader.java
+@@ -0,0 +1,8 @@
++import java.io.FileInputStream;
++
++class Reader {
++  int first(String path) throws Exception {
++    FileInputStream in = new FileInputStream(path);
++    return in.read();
++  }
++}

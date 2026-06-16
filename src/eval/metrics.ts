@@ -39,24 +39,61 @@ export interface MetricStats {
   max: number;
   /** Number of repetitions. */
   n: number;
+  /** Standard error of the mean (std / sqrt(n)). */
+  sem: number;
+  /** Half-width of the 95% confidence interval for the mean (t-based). */
+  ci95: number;
+  /** Lower / upper bounds of the 95% CI for the mean. */
+  ci95Lo: number;
+  ci95Hi: number;
 }
 
-/** Compute mean/std/min/max for a vector of samples. */
+/**
+ * Two-sided t critical values at the 95% level by degrees of freedom (n-1).
+ * Eval repetitions are small (typically 3–5), so a z=1.96 approximation would
+ * understate the interval; we use Student's t and fall back to 1.96 for large n.
+ */
+const T_95: Record<number, number> = {
+  1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
+  6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+  11: 2.201, 12: 2.179, 13: 2.16, 14: 2.145, 15: 2.131,
+  20: 2.086, 25: 2.06, 30: 2.042,
+};
+
+function tCritical95(df: number): number {
+  if (df <= 0) return 0;
+  if (T_95[df] !== undefined) return T_95[df];
+  if (df > 30) return 1.96;
+  // Nearest tabulated df at or below, conservative for the gaps (15<df<30).
+  const keys = Object.keys(T_95).map(Number).sort((a, b) => a - b);
+  let best = keys[0];
+  for (const k of keys) if (k <= df) best = k;
+  return T_95[best];
+}
+
+/** Compute mean/std/min/max + 95% confidence interval for a vector of samples. */
 export function describe(samples: number[]): MetricStats {
   if (samples.length === 0) {
-    return { mean: 0, std: 0, min: 0, max: 0, n: 0 };
+    return { mean: 0, std: 0, min: 0, max: 0, n: 0, sem: 0, ci95: 0, ci95Lo: 0, ci95Hi: 0 };
   }
-  const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+  const n = samples.length;
+  const mean = samples.reduce((a, b) => a + b, 0) / n;
   const variance =
     samples.reduce((acc, x) => acc + (x - mean) ** 2, 0) /
-    Math.max(1, samples.length - 1); // sample variance
+    Math.max(1, n - 1); // sample variance
   const std = Math.sqrt(variance);
+  const sem = n > 1 ? std / Math.sqrt(n) : 0;
+  const ci95 = n > 1 ? tCritical95(n - 1) * sem : 0;
   return {
     mean,
     std,
     min: Math.min(...samples),
     max: Math.max(...samples),
-    n: samples.length,
+    n,
+    sem,
+    ci95,
+    ci95Lo: mean - ci95,
+    ci95Hi: mean + ci95,
   };
 }
 

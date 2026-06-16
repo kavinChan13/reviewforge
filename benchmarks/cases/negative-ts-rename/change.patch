@@ -1,0 +1,10 @@
+diff --git a/scale.ts b/scale.ts
+index 1111111..2222222 100644
+--- a/scale.ts
++++ b/scale.ts
+@@ -1,3 +1,3 @@
+-export function scale(value: number, f: number): number {
+-  return value * f;
++export function scale(value: number, factor: number): number {
++  return value * factor;
+ }

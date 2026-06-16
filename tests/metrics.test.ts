@@ -121,6 +121,24 @@ describe("describe + multiRunSummary (multi-run statistics)", () => {
     expect(s.n).toBe(3);
   });
 
+  it("computes a t-based 95% confidence interval for the mean", () => {
+    const s = describeStats([0.6, 0.7, 0.8]);
+    // sem = std/sqrt(n) = 0.1/sqrt(3) ≈ 0.057735; t_.95(df=2) = 4.303
+    expect(s.sem).toBeCloseTo(0.057735, 4);
+    expect(s.ci95).toBeCloseTo(4.303 * 0.057735, 4); // ≈ 0.24843
+    expect(s.ci95Lo).toBeCloseTo(s.mean - s.ci95, 6);
+    expect(s.ci95Hi).toBeCloseTo(s.mean + s.ci95, 6);
+  });
+
+  it("has no interval for a single sample", () => {
+    const s = describeStats([0.75]);
+    expect(s.n).toBe(1);
+    expect(s.sem).toBe(0);
+    expect(s.ci95).toBe(0);
+    expect(s.ci95Lo).toBe(0.75);
+    expect(s.ci95Hi).toBe(0.75);
+  });
+
   it("aggregates per-run AggregateMetrics into a multi-run summary", () => {
     const mk = (recall: number, precision: number, fp: number): AggregateMetrics => ({
       cases: 3,

@@ -1,0 +1,17 @@
+diff --git a/sum.go b/sum.go
+index 1111111..2222222 100644
+--- a/sum.go
++++ b/sum.go
+@@ -1,9 +1,9 @@
+ package mathutil
+ 
+ func Sum(xs []int) int {
+-	acc := 0
++	total := 0
+ 	for _, x := range xs {
+-		acc += x
++		total += x
+ 	}
+-	return acc
++	return total
+ }

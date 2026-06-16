@@ -1,0 +1,16 @@
+{
+  "id": "syn-cpp-uninitialized",
+  "description": "Returns a possibly-uninitialized local on one branch.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "compute.cpp",
+      "line": 4,
+      "category": "correctness",
+      "severity": "high",
+      "note": "x is uninitialized when flag is false; return x reads indeterminate value"
+    }
+  ]
+}

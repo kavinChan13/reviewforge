@@ -1,0 +1,17 @@
+diff --git a/config.go b/config.go
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/config.go
+@@ -0,0 +1,11 @@
++package config
++
++import "os"
++
++func ReadConfig(path string) []byte {
++	f, _ := os.Open(path)
++	defer f.Close()
++	buf := make([]byte, 1024)
++	f.Read(buf)
++	return buf
++}

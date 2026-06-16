@@ -1,0 +1,11 @@
+diff --git a/copy.cpp b/copy.cpp
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/copy.cpp
+@@ -0,0 +1,5 @@
++#include <cstring>
++
++void copyName(char *dst, const char *src) {
++  strcpy(dst, src);
++}

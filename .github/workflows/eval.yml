@@ -1,0 +1,70 @@
+name: Eval gate
+
+# Regression gate for review quality (R5). Unlike unit tests, this needs a live
+# LLM provider, so it runs on a schedule + manual dispatch rather than on every
+# push, and only when the LLM_* secrets are configured.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "Repetitions per config (mean ± 95% CI)"
+        default: "3"
+  schedule:
+    # Weekly, Monday 03:00 UTC.
+    - cron: "0 3 * * 1"
+
+jobs:
+  eval-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for provider secret
+        id: guard
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          if [ -n "$LLM_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::LLM_API_KEY secret not set — skipping eval gate."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.enabled == 'true'
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+        if: steps.guard.outputs.enabled == 'true'
+
+      - name: Run eval with regression gate vs public baseline
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          EMBED_BASE_URL: ${{ secrets.EMBED_BASE_URL }}
+          EMBED_API_KEY: ${{ secrets.EMBED_API_KEY }}
+          EMBED_MODEL: ${{ secrets.EMBED_MODEL }}
+        # Pin to the same case cohort the committed baseline was computed on, so
+        # newly added benchmark cases don't skew the aggregate comparison.
+        # `rf eval` exits 3 when metrics regress beyond tolerance vs the baseline.
+        run: |
+          npm run -s rf -- eval \
+            --dir benchmarks/cases \
+            --configs full \
+            --only go-tidwall-gjson-5ab551f3,go-tidwall-gjson-5d0d40c8,go-tidwall-gjson-8d2c36ff,go-tidwall-gjson-bbf40bb0,spdlog-2e71fdf3,spdlog-a2976707,spdlog-bfde7d37,spdlog-d1d1b6ff,negative-cpp-rename,negative-ts-comment \
+            --runs "${{ github.event.inputs.runs || '3' }}" \
+            --baseline benchmarks/results-public/v3/report.json \
+            --out eval-out
+
+      - name: Upload eval report
+        if: steps.guard.outputs.enabled == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-out/
+          if-no-files-found: ignore

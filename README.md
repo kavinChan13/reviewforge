@@ -310,10 +310,14 @@ tsx scripts/seed-from-commit.ts /path/to/repo <fix-sha> --id my-case --category 
 - [x] **M1** 多维审查 MVP（索引 + 上下文 + 状态图编排 + 聚合 + clang-tidy 融合 + md/json + 门禁）
 - [x] **M2** 记忆闭环 + 可量化评测（三层记忆 + 评测 harness + 误报抑制 + SARIF）
 - [x] **M3** 平台对接（GitHub / Gerrit 回贴、CI 模板、多语言）
-- [ ] 结构化（function-calling）finding 输出
-- [ ] 更大规模多语言基准集 + 置信区间
-- [ ] 更丰富的跨文件调用图与类型解析
-- [ ] 增量 PR-update 审查 + 托管式 tracing
+- [x] **结构化（function-calling）finding 输出** —— JSON-schema 强约束 + provider 能力探测自动回落 `json_object`（`RF_STRUCTURED_OUTPUT`）
+- [x] **置信区间** —— 多轮评测报告/看板按 mean ± 95% CI（Student's t）展示
+- [x] **基准集扩容** —— 由 10 扩到 24（新增自包含 synthetic bug + negative，覆盖 C++/Py/Go/TS/Java）；继续向 50 + 真实 seed 推进
+- [x] **eval 回归门禁接入 CI** —— `.github/workflows/eval.yml`：定时 + 手动触发，对比公开基线，回归即阻断
+- [x] **更丰富的跨文件调用图与类型解析** —— receiver 类型推断 + import 别名归一 + 跨文件 `Type.method` 定义解析；`find_references` / `read_symbol` 支持 `qualifier` 消歧
+- [x] **增量 PR-update 审查** —— `rf review --incremental` 仅审上次审查以来新推送的提交
+- [x] **托管式 tracing** —— 可配 `RF_TRACE_ENDPOINT` 将每次审查 trace POST 到自有收集器（厂商中立 JSON，不绑定 LangSmith）
+- [ ] 基准集继续扩到 50 + 真实 seed 历史缺陷
 
 详见 [docs/IMPROVEMENTS.md](./docs/IMPROVEMENTS.md)。
 

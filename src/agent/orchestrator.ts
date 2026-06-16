@@ -10,6 +10,12 @@ import { initialState, reduce, type ReviewState } from "./state.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildSystemPrompt, SUBAGENTS } from "./subagents.js";
+import {
+  chatJson,
+  DIMENSIONS_SCHEMA,
+  FINDINGS_SCHEMA,
+  VERDICTS_SCHEMA,
+} from "./structured.js";
 import { languageGuidance } from "./lang_guidance.js";
 import { LANG_BY_EXT } from "../index/scanner.js";
 import { toolsByName, type ToolContext } from "./tools.js";
@@ -58,7 +64,13 @@ export function parseFindings(content: string): RawFinding[] {
   const arr = Array.isArray(obj?.findings) ? obj.findings : [];
   const out: RawFinding[] = [];
   for (const item of arr) {
-    const parsed = RawFindingSchema.safeParse(item);
+    // Strict JSON-schema output uses null for absent optional fields; drop those
+    // so zod's `.optional()` / `.default()` apply instead of failing validation.
+    const cleaned =
+      item && typeof item === "object"
+        ? Object.fromEntries(Object.entries(item).filter(([, v]) => v !== null))
+        : item;
+    const parsed = RawFindingSchema.safeParse(cleaned);
     if (parsed.success) out.push(parsed.data);
   }
   return out;
@@ -123,9 +135,13 @@ async function triageDimensions(
   triage: ChatProvider,
   diffText: string,
   all: string[],
+  structured: boolean,
 ): Promise<string[] | null> {
   try {
-    const res = await triage.chat({
+    const res = await chatJson({
+      provider: triage,
+      enabled: structured,
+      schema: DIMENSIONS_SCHEMA,
       messages: [
         {
           role: "system",
@@ -136,7 +152,6 @@ async function triageDimensions(
         },
         { role: "user", content: `Dimensions: ${all.join(", ")}\n\nDiff:\n${diffText.slice(0, 6000)}` },
       ],
-      responseFormatJson: true,
     });
     let t = res.content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
     const s = t.indexOf("{");
@@ -204,6 +219,7 @@ export async function runReviewGraph(deps: OrchestratorDeps): Promise<ReviewStat
       deps.triageProvider,
       context.diffText,
       SUBAGENTS.map((d) => d.category),
+      cfg.structuredOutput,
     );
     if (picked) {
       selectedCategories = picked;
@@ -243,7 +259,10 @@ export async function runReviewGraph(deps: OrchestratorDeps): Promise<ReviewStat
       // intended findings, ask once more for strictly valid JSON before giving up.
       if (findings.length === 0 && /findings|"file"|"severity"/.test(res.content)) {
         try {
-          const repaired = await provider.chat({
+          const repaired = await chatJson({
+            provider,
+            enabled: cfg.structuredOutput,
+            schema: FINDINGS_SCHEMA,
             messages: [
               {
                 role: "system",
@@ -252,7 +271,6 @@ export async function runReviewGraph(deps: OrchestratorDeps): Promise<ReviewStat
               },
               { role: "user", content: res.content },
             ],
-            responseFormatJson: true,
           });
           const repairedFindings = parseFindings(repaired.content);
           if (repairedFindings.length > 0) {
@@ -315,12 +333,14 @@ export async function runReviewGraph(deps: OrchestratorDeps): Promise<ReviewStat
 
       let verdicts: VerifyVerdict[] = [];
       try {
-        const res = await provider.chat({
+        const res = await chatJson({
+          provider,
+          enabled: cfg.structuredOutput,
+          schema: VERDICTS_SCHEMA,
           messages: [
             { role: "system", content: sys },
             { role: "user", content: user },
           ],
-          responseFormatJson: true,
         });
         verdicts = parseVerdicts(res.content);
       } catch {

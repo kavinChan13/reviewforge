@@ -1,0 +1,16 @@
+{
+  "id": "syn-cpp-strcpy-overflow",
+  "description": "Unbounded strcpy into a caller-provided buffer (buffer overflow).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "copy.cpp",
+      "line": 4,
+      "category": "security",
+      "severity": "high",
+      "note": "strcpy without bounds check — overflow if src longer than dst"
+    }
+  ]
+}

@@ -27,12 +27,26 @@ export interface ChatMessage {
   name?: string;
 }
 
+/** Strict JSON-schema constraint for the model's output (function-calling style). */
+export interface ResponseSchema {
+  /** Schema name (sent to the provider). */
+  name: string;
+  /** JSON Schema describing the expected response object. */
+  schema: Record<string, unknown>;
+}
+
 export interface ChatRequest {
   messages: ChatMessage[];
   tools?: ToolSpec[];
   temperature?: number;
   /** Force JSON object output when no tools are used. */
   responseFormatJson?: boolean;
+  /**
+   * Constrain output to a JSON schema (OpenAI `response_format: json_schema`).
+   * Takes precedence over `responseFormatJson` when the provider supports it.
+   * Ignored when `tools` are present.
+   */
+  responseSchema?: ResponseSchema;
 }
 
 export interface ChatUsage {

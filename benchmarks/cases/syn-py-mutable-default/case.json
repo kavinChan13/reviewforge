@@ -1,0 +1,16 @@
+{
+  "id": "syn-py-mutable-default",
+  "description": "Mutable default argument (bucket=[]) shared across calls.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "bucket.py",
+      "line": 1,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "default [] is evaluated once and accumulates across calls"
+    }
+  ]
+}

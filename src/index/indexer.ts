@@ -9,7 +9,8 @@ import { chunkFile } from "./chunker.js";
 import { extractSymbols } from "./parser.js";
 import { scanRepo } from "./scanner.js";
 import { buildSymbolGraph, type ReferenceSite } from "./symbol_graph.js";
-import { extractReferencesTreeSitter } from "./treesitter.js";
+import { extractReferencesTreeSitter, extractTypeBindingsTreeSitter } from "./treesitter.js";
+import { canonicalize, extractImportAliases } from "./imports.js";
 import { loadIndexBundle, saveIndex } from "./store.js";
 import type { CodeChunk, CodeSymbol, IndexMeta, VectorRecord } from "./types.js";
 
@@ -113,15 +114,32 @@ export async function buildIndex(
   const reusedVectors: VectorRecord[] = [];
   const chunksToEmbed: CodeChunk[] = [];
   const references: Record<string, ReferenceSite[]> = {};
+  const qualifiedReferences: Record<string, ReferenceSite[]> = {};
   const MAX_REFS_PER_NAME = 50;
   let reusedFiles = 0;
 
   const addRefs = async (file: string, text: string, lang: string) => {
     const sites = await extractReferencesTreeSitter(text, lang);
     if (!sites) return;
+    // Same-file receiver-type inference (R3): map local vars to their type so
+    // `obj.method()` is keyed by `Type.method` when the type is known.
+    // Import aliases are normalized to the canonical type name (cross-file).
+    const aliases = extractImportAliases(text, lang);
+    const bindings = await extractTypeBindingsTreeSitter(text, lang);
+    const varType = new Map<string, string>();
+    if (bindings) for (const b of bindings) varType.set(b.variable, canonicalize(b.type, aliases));
+
     for (const s of sites) {
       const arr = (references[s.callee] ??= []);
       if (arr.length < MAX_REFS_PER_NAME) arr.push({ file, line: s.line });
+      if (s.receiver) {
+        // Prefer the resolved type; fall back to the receiver expression itself
+        // (also normalized, so a static call on an imported alias resolves too).
+        const qualifier = varType.get(s.receiver) ?? canonicalize(s.receiver, aliases);
+        const key = `${qualifier}.${s.callee}`;
+        const qarr = (qualifiedReferences[key] ??= []);
+        if (qarr.length < MAX_REFS_PER_NAME) qarr.push({ file, line: s.line });
+      }
     }
   };
 
@@ -156,7 +174,7 @@ export async function buildIndex(
       `(${reusedFiles} file(s) reused, ${chunksToEmbed.length} chunk(s) need embedding).`,
   );
 
-  const symbolGraph = buildSymbolGraph(allSymbols, references);
+  const symbolGraph = buildSymbolGraph(allSymbols, references, qualifiedReferences);
 
   let vectors: VectorRecord[] = [...reusedVectors];
   if (canEmbed) {

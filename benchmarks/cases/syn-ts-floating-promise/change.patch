@@ -1,0 +1,11 @@
+diff --git a/handler.ts b/handler.ts
+new file mode 100644
+index 0000000..9999999
+--- /dev/null
++++ b/handler.ts
+@@ -0,0 +1,5 @@
++async function save(): Promise<void> {}
++
++export function handler(): void {
++  save();
++}

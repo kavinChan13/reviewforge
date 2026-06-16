@@ -88,6 +88,8 @@ export function renderDashboard(runs: AblationRun[], generatedAt = new Date()): 
 <script>
   const RUNS = ${data};
   const fmt = (x) => (x*100).toFixed(1) + '%';
+  // Prefer the 95% CI half-width over raw std for spread display.
+  const margin = (stat) => (stat && stat.ci95 != null ? stat.ci95 : (stat ? stat.std : 0));
 
   // KPIs from the "best F1" config.
   const best = [...RUNS].sort((a,b)=> b.aggregate.f1 - a.aggregate.f1)[0];
@@ -98,19 +100,19 @@ export function renderDashboard(runs: AblationRun[], generatedAt = new Date()): 
   }
   if (best) {
     kpis.innerHTML = [
-      kpi('best config', best.config, bestM ? bestM.runs+' runs' : '1 run'),
+      kpi('best config', best.config, bestM ? bestM.runs+' runs (95% CI)' : '1 run'),
       kpi('Recall',
         bestM ? fmt(bestM.recall.mean) : fmt(best.aggregate.recall),
-        bestM ? '± '+fmt(bestM.recall.std) : ''),
+        bestM ? '± '+fmt(margin(bestM.recall)) : ''),
       kpi('Precision',
         bestM ? fmt(bestM.precision.mean) : fmt(best.aggregate.precision),
-        bestM ? '± '+fmt(bestM.precision.std) : ''),
+        bestM ? '± '+fmt(margin(bestM.precision)) : ''),
       kpi('F1',
         bestM ? fmt(bestM.f1.mean) : fmt(best.aggregate.f1),
-        bestM ? '± '+fmt(bestM.f1.std) : ''),
+        bestM ? '± '+fmt(margin(bestM.f1)) : ''),
       kpi('FP / case',
         bestM ? bestM.falsePositivesPerCase.mean.toFixed(2) : best.aggregate.falsePositivesPerCase.toFixed(2),
-        bestM ? '± '+bestM.falsePositivesPerCase.std.toFixed(2) : ''),
+        bestM ? '± '+margin(bestM.falsePositivesPerCase).toFixed(2) : ''),
       kpi('Localization', fmt(best.aggregate.localizationAccuracy)),
     ].join('');
   }

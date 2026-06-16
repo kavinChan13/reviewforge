@@ -1,0 +1,12 @@
+diff --git a/dangling.cpp b/dangling.cpp
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/dangling.cpp
+@@ -0,0 +1,6 @@
++#include <string>
++
++const std::string &greeting(const std::string &name) {
++  std::string msg = "Hello, " + name;
++  return msg;
++}

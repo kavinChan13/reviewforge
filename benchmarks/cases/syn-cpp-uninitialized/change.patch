@@ -1,0 +1,11 @@
+diff --git a/compute.cpp b/compute.cpp
+new file mode 100644
+index 0000000..bbbbbbb
+--- /dev/null
++++ b/compute.cpp
+@@ -0,0 +1,5 @@
++int compute(bool flag) {
++  int x;
++  if (flag) x = 5;
++  return x;
++}

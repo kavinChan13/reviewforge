@@ -1,0 +1,16 @@
+{
+  "id": "syn-ts-floating-promise",
+  "description": "Async function call is not awaited (floating promise; errors/ordering lost).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "handler.ts",
+      "line": 4,
+      "category": "correctness",
+      "severity": "medium",
+      "note": "save() returns a Promise that is neither awaited nor handled"
+    }
+  ]
+}

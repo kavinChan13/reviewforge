@@ -74,37 +74,65 @@ const QUERIES: Record<string, string> = {
 };
 QUERIES.tsx = QUERIES.typescript;
 
-/** Per-language query capturing call sites: @callee = the called name. */
+/**
+ * Per-language query capturing call sites: @callee = the called name, and for
+ * member/method calls @receiver = the object expression (used to disambiguate
+ * same-named methods across types — R3).
+ */
 const REF_QUERIES: Record<string, string> = {
   cpp: `
     (call_expression function: (identifier) @callee)
-    (call_expression function: (field_expression field: (field_identifier) @callee))
+    (call_expression function: (field_expression argument: (_) @receiver field: (field_identifier) @callee))
     (call_expression function: (qualified_identifier name: (identifier) @callee))
   `,
   c: `(call_expression function: (identifier) @callee)`,
   python: `
     (call function: (identifier) @callee)
-    (call function: (attribute attribute: (identifier) @callee))
+    (call function: (attribute object: (_) @receiver attribute: (identifier) @callee))
   `,
   go: `
     (call_expression function: (identifier) @callee)
-    (call_expression function: (selector_expression field: (field_identifier) @callee))
+    (call_expression function: (selector_expression operand: (_) @receiver field: (field_identifier) @callee))
   `,
   rust: `
     (call_expression function: (identifier) @callee)
-    (call_expression function: (field_expression field: (field_identifier) @callee))
+    (call_expression function: (field_expression value: (_) @receiver field: (field_identifier) @callee))
   `,
-  java: `(method_invocation name: (identifier) @callee)`,
+  java: `(method_invocation object: (_) @receiver name: (identifier) @callee)`,
   javascript: `
     (call_expression function: (identifier) @callee)
-    (call_expression function: (member_expression property: (property_identifier) @callee))
+    (call_expression function: (member_expression object: (_) @receiver property: (property_identifier) @callee))
   `,
   typescript: `
     (call_expression function: (identifier) @callee)
-    (call_expression function: (member_expression property: (property_identifier) @callee))
+    (call_expression function: (member_expression object: (_) @receiver property: (property_identifier) @callee))
   `,
 };
 REF_QUERIES.tsx = REF_QUERIES.typescript;
+
+/**
+ * Per-language query binding a local variable to its (named) type, for same-file
+ * receiver-type inference. @var = variable name, @type = its type/constructor.
+ * Intentionally conservative: only simple, unambiguous declarations.
+ */
+const TYPE_BINDING_QUERIES: Record<string, string> = {
+  cpp: `
+    (declaration type: (type_identifier) @type declarator: (identifier) @var)
+    (declaration type: (type_identifier) @type declarator: (init_declarator declarator: (identifier) @var))
+  `,
+  go: `
+    (var_spec name: (identifier) @var type: (type_identifier) @type)
+    (short_var_declaration left: (expression_list (identifier) @var) right: (expression_list (composite_literal type: (type_identifier) @type)))
+  `,
+  typescript: `
+    (variable_declarator name: (identifier) @var type: (type_annotation (type_identifier) @type))
+    (variable_declarator name: (identifier) @var value: (new_expression constructor: (identifier) @type))
+  `,
+  python: `
+    (assignment left: (identifier) @var right: (call function: (identifier) @type))
+  `,
+};
+TYPE_BINDING_QUERIES.tsx = TYPE_BINDING_QUERIES.typescript;
 
 function kindForNode(type: string): SymbolKind {
   if (type.includes("class")) return "class";
@@ -215,26 +243,48 @@ export function treeSitterSupports(lang: string): boolean {
 export interface CallSite {
   callee: string;
   line: number;
+  /** For member/method calls: the object expression text (e.g. "obj" in obj.f()). */
+  receiver?: string;
 }
 
-function getRefQuery(lang: string, language: TSLanguage): TSQuery | null {
-  if (refQueryCache.has(lang)) return refQueryCache.get(lang)!;
-  const src = REF_QUERIES[lang];
+/** A local variable bound to a named type within a single file. */
+export interface TypeBinding {
+  variable: string;
+  type: string;
+}
+
+function getCachedQuery(
+  cache: Map<string, TSQuery | null>,
+  queries: Record<string, string>,
+  lang: string,
+  language: TSLanguage,
+): TSQuery | null {
+  if (cache.has(lang)) return cache.get(lang)!;
+  const src = queries[lang];
   if (!src) {
-    refQueryCache.set(lang, null);
+    cache.set(lang, null);
     return null;
   }
   try {
     const q = language.query(src);
-    refQueryCache.set(lang, q);
+    cache.set(lang, q);
     return q;
   } catch {
-    refQueryCache.set(lang, null);
+    cache.set(lang, null);
     return null;
   }
 }
 
-/** Extract call sites (callee name + line) for building a reference graph. */
+function getRefQuery(lang: string, language: TSLanguage): TSQuery | null {
+  return getCachedQuery(refQueryCache, REF_QUERIES, lang, language);
+}
+
+const typeBindingQueryCache = new Map<string, TSQuery | null>();
+function getTypeBindingQuery(lang: string, language: TSLanguage): TSQuery | null {
+  return getCachedQuery(typeBindingQueryCache, TYPE_BINDING_QUERIES, lang, language);
+}
+
+/** Extract call sites (callee name + line + optional receiver) for a reference graph. */
 export async function extractReferencesTreeSitter(
   text: string,
   lang: string,
@@ -254,10 +304,49 @@ export async function extractReferencesTreeSitter(
     for (const match of query.matches(tree.rootNode) as any[]) {
       const cap = match.captures.find((c: any) => c.name === "callee");
       if (!cap?.node?.text) continue;
-      sites.push({ callee: cap.node.text, line: cap.node.startPosition.row + 1 });
+      const recv = match.captures.find((c: any) => c.name === "receiver");
+      const receiver = recv?.node?.text;
+      sites.push({
+        callee: cap.node.text,
+        line: cap.node.startPosition.row + 1,
+        ...(receiver ? { receiver } : {}),
+      });
     }
     tree.delete();
     return sites;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract same-file variable→type bindings (conservative). Returns null when the
+ * language has no binding query or tree-sitter fails (caller skips type inference).
+ */
+export async function extractTypeBindingsTreeSitter(
+  text: string,
+  lang: string,
+): Promise<TypeBinding[] | null> {
+  if (!TYPE_BINDING_QUERIES[lang] || !GRAMMAR_BY_LANG[lang]) return null;
+  try {
+    await ensureInit();
+    const language = await loadLanguage(lang);
+    if (!language) return null;
+    const query = getTypeBindingQuery(lang, language);
+    if (!query) return null;
+    const parser = new (Parser as any)();
+    parser.setLanguage(language);
+    const tree = parser.parse(text);
+    if (!tree) return null;
+    const bindings: TypeBinding[] = [];
+    for (const match of query.matches(tree.rootNode) as any[]) {
+      const varCap = match.captures.find((c: any) => c.name === "var");
+      const typeCap = match.captures.find((c: any) => c.name === "type");
+      if (!varCap?.node?.text || !typeCap?.node?.text) continue;
+      bindings.push({ variable: varCap.node.text, type: typeCap.node.text });
+    }
+    tree.delete();
+    return bindings;
   } catch {
     return null;
   }

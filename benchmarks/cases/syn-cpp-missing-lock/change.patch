@@ -1,0 +1,19 @@
+diff --git a/counter.cpp b/counter.cpp
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/counter.cpp
+@@ -0,0 +1,13 @@
++#include <mutex>
++
++struct Counter {
++  int value = 0;
++  std::mutex m;
++
++  void inc() { value++; }
++
++  int get() {
++    std::lock_guard<std::mutex> g(m);
++    return value;
++  }
++};

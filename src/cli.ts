@@ -36,8 +36,11 @@ function buildChatProvider(cfg: Config, opts: { modelOverride?: string; cache?: 
 }
 import { isClangTidyAvailable } from "./review/static_analysis.js";
 import { buildReviewContext } from "./review/context_builder.js";
+import type { DiffOptions } from "./review/diff.js";
+import { planIncrementalReview, recordReviewed } from "./review/incremental.js";
 import { loadIgnoreGlobs } from "./review/ignore.js";
 import { runReviewGraph } from "./agent/orchestrator.js";
+import { exportTrace } from "./agent/trace_export.js";
 import type { ToolContext } from "./agent/tools.js";
 import { computeExitCode } from "./report/gate.js";
 import { renderJson } from "./report/json.js";
@@ -89,6 +92,7 @@ interface ReviewOpts {
   change?: string;
   dryRun?: boolean;
   reindex?: boolean;
+  incremental?: boolean;
 }
 
 async function cmdReview(opts: ReviewOpts): Promise<void> {
@@ -128,14 +132,41 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
   const memory = new LongTermMemory(cfg.dataDirAbs);
   await memory.load();
 
-  const context = await buildReviewContext(
-    cfg,
-    { base: opts.base, commits: opts.commits, diffFile: opts.diff },
-    logErr,
-  );
+  // R4a — incremental PR-update review: when enabled, review only the commits
+  // pushed since the last review of this target instead of the whole range.
+  let diffOpts: DiffOptions = { base: opts.base, commits: opts.commits, diffFile: opts.diff };
+  let incrementalKey: string | null = null;
+  let incrementalHead: string | null = null;
+  if (opts.incremental && !opts.dryRun) {
+    const plan = await planIncrementalReview(
+      cfg.repoRoot,
+      cfg.dataDirAbs,
+      diffOpts,
+      { pr: opts.pr, change: opts.change, base: opts.base },
+    );
+    incrementalKey = plan.key;
+    incrementalHead = plan.headSha;
+    if (plan.mode === "up-to-date") {
+      logErr(pc.green(`Incremental review: ${plan.reason}. Nothing new to review.`));
+      return;
+    }
+    if (plan.mode === "incremental") {
+      logErr(pc.cyan(`Incremental review: ${plan.reason}.`));
+      diffOpts = plan.diffOptions;
+    } else {
+      logErr(pc.yellow(`Incremental review: ${plan.reason}.`));
+    }
+  }
+
+  const context = await buildReviewContext(cfg, diffOpts, logErr);
 
   if (context.regions.length === 0) {
     logErr(pc.yellow("No changes found in the diff. Nothing to review."));
+    // Even with no reviewable changes, advance the incremental marker so we
+    // don't keep re-scanning the same (non-source) delta on every push.
+    if (incrementalKey && incrementalHead) {
+      await recordReviewed(cfg.dataDirAbs, incrementalKey, incrementalHead, "skipped");
+    }
     return;
   }
 
@@ -203,6 +234,7 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
   }
 
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
+  const runStartedAt = new Date().toISOString();
   logErr(pc.cyan(`Reviewing (run ${runId})...`));
   const state = await runReviewGraph({
     cfg,
@@ -237,6 +269,29 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
     ...state.trace.map((t) => JSON.stringify({ type: "node", ...t })),
   ];
   await fs.writeFile(path.join(tracesDir, `${runId}.jsonl`), traceLines.join("\n"));
+
+  // R4b — optionally ship the trace to a managed HTTP collector (best-effort).
+  if (cfg.traceEndpoint) {
+    await exportTrace(
+      { endpoint: cfg.traceEndpoint, token: cfg.traceToken },
+      {
+        runId,
+        commit: index?.meta.commit ?? null,
+        startedAt: runStartedAt,
+        finishedAt: new Date().toISOString(),
+        usage: state.usage,
+        findings: state.findings.length,
+        nodes: state.trace,
+        meta: { model: cfg.llmModel, repo: cfg.repoRoot, categories: categories ?? "all" },
+      },
+      (m) => logErr(pc.dim(m)),
+    );
+  }
+
+  // R4a — advance the incremental marker now that this HEAD has been reviewed.
+  if (incrementalKey && incrementalHead) {
+    await recordReviewed(cfg.dataDirAbs, incrementalKey, incrementalHead, runId);
+  }
 
   const commit = index?.meta.commit ?? null;
   const formats = opts.format === "all" ? ["md", "json", "sarif"] : [opts.format];
@@ -609,6 +664,7 @@ export async function run(argv: string[]): Promise<void> {
     .option("--change <id>", "Gerrit change id/number (or set GERRIT_CHANGE_ID)")
     .option("--dry-run", "Build context + assemble prompts; do NOT call the LLM")
     .option("--reindex", "Incrementally refresh the codebase index before reviewing (fresh context)")
+    .option("--incremental", "Review only commits pushed since the last review of this target (PR-update mode)")
     .action(cmdReview);
 
   program

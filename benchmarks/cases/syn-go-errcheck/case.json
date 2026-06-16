@@ -1,0 +1,16 @@
+{
+  "id": "syn-go-errcheck",
+  "description": "Ignored error from os.Open; uses the (possibly nil) file handle.",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "config.go",
+      "line": 6,
+      "category": "correctness",
+      "severity": "high",
+      "note": "f, _ := os.Open(path) — error discarded, f may be nil on the next line"
+    }
+  ]
+}

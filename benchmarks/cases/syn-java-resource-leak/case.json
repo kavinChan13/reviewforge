@@ -1,0 +1,16 @@
+{
+  "id": "syn-java-resource-leak",
+  "description": "FileInputStream opened but never closed (resource leak; no try-with-resources).",
+  "repo": "repo",
+  "diffFile": "change.patch",
+  "labelSource": "synthetic",
+  "groundTruth": [
+    {
+      "file": "Reader.java",
+      "line": 5,
+      "category": "memory",
+      "severity": "medium",
+      "note": "stream is never closed; use try-with-resources"
+    }
+  ]
+}

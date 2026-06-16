@@ -101,15 +101,25 @@ const readFile: Tool = {
 const readSymbol: Tool = {
   spec: {
     name: "read_symbol",
-    description: "Read the full definition of a symbol (function/class/etc.) by name.",
+    description:
+      "Read the full definition of a symbol (function/class/etc.) by name. For a " +
+      "method, pass `qualifier` (its owning type) to resolve the right definition " +
+      "across files (e.g. an out-of-line C++ method defined in a .cpp).",
     parameters: {
       type: "object",
-      properties: { name: str({}), file: str({ description: "Optional file hint." }) },
+      properties: {
+        name: str({}),
+        file: str({ description: "Optional file hint." }),
+        qualifier: str({ description: "Optional owning type to disambiguate across files." }),
+      },
       required: ["name"],
     },
   },
   async handler(args, ctx) {
-    const defs = ctx.index?.symbolGraph.findDefinition(args.name) ?? [];
+    const graph = ctx.index?.symbolGraph;
+    const defs = args.qualifier
+      ? graph?.resolveQualifiedDefinition(args.qualifier, args.name) ?? []
+      : graph?.findDefinition(args.name) ?? [];
     let target = defs[0];
     if (args.file) target = defs.find((d) => d.file === args.file) ?? target;
     if (!target) {
@@ -147,15 +157,38 @@ const findDefinition: Tool = {
 const findReferences: Tool = {
   spec: {
     name: "find_references",
-    description: "Find references/callers of a symbol across the repo.",
-    parameters: { type: "object", properties: { name: str({}) }, required: ["name"] },
+    description:
+      "Find references/callers of a symbol across the repo. For methods, pass " +
+      "`qualifier` (the receiver's type or variable, e.g. 'Logger') to disambiguate " +
+      "same-named methods on different types.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: str({}),
+        qualifier: str({ description: "Optional type/receiver to disambiguate a method name." }),
+      },
+      required: ["name"],
+    },
   },
   async handler(args, ctx) {
+    const graph = ctx.index?.symbolGraph;
     // Prefer the precise call-graph (tree-sitter) when available.
-    const graphRefs = ctx.index?.symbolGraph.findReferences(args.name) ?? [];
+    const graphRefs = graph?.findReferences(args.name, args.qualifier) ?? [];
     if (graphRefs.length > 0) {
+      const header = args.qualifier
+        ? `# callers of ${args.qualifier}.${args.name} (from symbol graph)`
+        : `# callers (from symbol graph)`;
       const lines = graphRefs.map((r) => `${r.file}:${r.line}`).join("\n");
-      return truncate(`# callers (from symbol graph)\n${lines}`);
+      // When the bare name is ambiguous, hint which qualifiers exist.
+      let hint = "";
+      if (!args.qualifier) {
+        const qs = graph?.qualifiersFor(args.name) ?? [];
+        if (qs.length > 1) {
+          hint = `\n\n# note: ${args.name} is called on multiple types/receivers: ${qs.slice(0, 8).join(", ")}` +
+            `\n# re-run with qualifier=<type> to narrow.`;
+        }
+      }
+      return truncate(`${header}\n${lines}${hint}`);
     }
     const out = await ripgrep(ctx.cfg.repoRoot, ["-n", "--no-heading", "-w", args.name]);
     return truncate(out || `No references found for ${args.name}`);
