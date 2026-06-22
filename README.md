@@ -231,6 +231,7 @@ ReviewForge 为 **CLI + 环境变量**，不绑定 GitHub Actions：在 **GitLab
 | 命令 | 作用 |
 |---|---|
 | `rf index` | 在当前仓库构建/增量更新索引（符号图 + 可选向量） |
+| `rf review-change 10132156` | **一键 Gerrit 审查**：拉取 change、刷新索引、审查、输出（详见下方） |
 | `rf review --base main` | 审查当前分支相对 `main` 的改动 |
 | `rf review --commits HEAD~3..HEAD` | 审查指定提交范围 |
 | `rf review --diff fix.patch` | 审查一个 patch 文件 |
@@ -243,6 +244,24 @@ ReviewForge 为 **CLI + 环境变量**，不绑定 GitHub Actions：在 **GitLab
 | `rf review --base main --post gerrit --change 12345` | 回贴 Gerrit change |
 | `rf post --post github --pr 42` | 复用上次 `last-review.json` 重贴 |
 | `rf doctor` | 环境与配置自检 |
+
+#### 一键 Gerrit 审查：`rf review-change`
+
+只需一个 change 号即可自动完成「拉取代码 → 刷新索引/RAG/符号图 → 审查 → 输出」：
+
+```bash
+# 在该 Gerrit 项目的本地 checkout 内执行（或用 --repo 指定路径）
+rf review-change 10132156 --post gerrit --format all --out review-out
+```
+
+它会：
+1. 用 `GERRIT_URL` / `GERRIT_USER` / `GERRIT_HTTP_PASSWORD` 查 change 元数据，得到**目标分支**与**最新 patchset 的 `refs/changes/..` ref**；
+2. `git fetch` 该 ref 与目标分支，并 checkout 出 patchset（本地分支 `reviewforge/change-<n>-ps<p>`）；
+3. 自动设 `--base <remote>/<目标分支>`、打开 `--reindex`，复用标准审查管线跑到出报告，可选 `--post gerrit` 回贴行内评论。
+
+常用选项：`--repo <路径>`（仓库不在 cwd 时）、`--patchset <n>`（指定 patchset）、`--remote <name>`、`--incremental`（仅审新推送的提交）、`--dry-run`。
+若不想走 Gerrit API，可用 `--ref refs/changes/56/10132156/3 --branch master` 手动指定。
+前置：本地需已 clone 该 Gerrit 项目（工具不自动 clone），并配置好 `GERRIT_*`（见 `.env.example`，`rf doctor` 可自检）。
 
 ```bash
 # 从真实 fix 提交一键生成基准 case（无需手写 ground truth）

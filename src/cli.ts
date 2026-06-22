@@ -37,6 +37,12 @@ function buildChatProvider(cfg: Config, opts: { modelOverride?: string; cache?: 
 import { isClangTidyAvailable } from "./review/static_analysis.js";
 import { buildReviewContext } from "./review/context_builder.js";
 import type { DiffOptions } from "./review/diff.js";
+import {
+  checkoutChange,
+  fetchChangeInfo,
+  gerritConnFromEnv,
+  type ChangeInfo,
+} from "./review/gerrit_change.js";
 import { planIncrementalReview, recordReviewed } from "./review/incremental.js";
 import { loadIgnoreGlobs } from "./review/ignore.js";
 import { runReviewGraph } from "./agent/orchestrator.js";
@@ -357,6 +363,120 @@ async function cmdReview(opts: ReviewOpts): Promise<void> {
   process.exitCode = computeExitCode(state.findings, failOn);
 }
 
+interface ReviewChangeOpts {
+  repo?: string;
+  remote: string;
+  patchset?: string;
+  base?: string;
+  ref?: string;
+  branch?: string;
+  checkout: boolean;
+  reindex: boolean;
+  // Passthrough to the review pipeline.
+  only?: string;
+  failOn: string;
+  format: string;
+  out?: string;
+  post?: string;
+  summaryOnly?: boolean;
+  incremental?: boolean;
+  dryRun?: boolean;
+}
+
+/**
+ * One-command Gerrit automation: `rf review-change <change>`.
+ * Resolves the change's target branch + patchset ref (via the Gerrit REST API,
+ * or `--ref/--branch` overrides), fetches + checks it out into the repo,
+ * then delegates to the standard review pipeline with `--reindex` so the
+ * symbol graph / RAG / static analysis all reflect the checked-out code.
+ */
+async function cmdReviewChange(change: string, opts: ReviewChangeOpts): Promise<void> {
+  // Operate inside the target repo (so cwd-based config/index/diff all target it).
+  if (opts.repo) {
+    const repoAbs = path.resolve(opts.repo);
+    try {
+      process.chdir(repoAbs);
+    } catch {
+      logErr(pc.red(`Cannot enter --repo ${repoAbs} (does it exist?).`));
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const repoRoot = process.cwd();
+
+  // 1. Resolve what to review: prefer explicit --ref/--branch, else Gerrit API.
+  let info: ChangeInfo;
+  if (opts.ref && opts.branch) {
+    const ps = opts.patchset ? parseInt(opts.patchset, 10) : 0;
+    info = {
+      number: parseInt(change, 10) || 0,
+      project: "(manual)",
+      branch: opts.branch,
+      ref: opts.ref,
+      revision: "manual",
+      patchset: ps,
+    };
+    logErr(pc.cyan(`Using manual ref ${info.ref} (base branch ${info.branch}).`));
+  } else {
+    const conn = gerritConnFromEnv();
+    if (!conn) {
+      logErr(
+        pc.red(
+          "Gerrit not configured. Set GERRIT_URL / GERRIT_USER / GERRIT_HTTP_PASSWORD in .env, " +
+            "or pass --ref <refs/changes/...> and --branch <target> to skip the API.",
+        ),
+      );
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      logErr(pc.cyan(`Resolving Gerrit change ${change}...`));
+      info = await fetchChangeInfo(conn, change, opts.patchset ? parseInt(opts.patchset, 10) : undefined);
+      logErr(
+        pc.dim(
+          `  project=${info.project} branch=${info.branch} patchset=${info.patchset} ref=${info.ref}`,
+        ),
+      );
+    } catch (err) {
+      logErr(pc.red(`Failed to resolve change ${change}: ${(err as Error).message}`));
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  // 2. Fetch + checkout the patchset; compute the diff base.
+  let base: string;
+  try {
+    const res = await checkoutChange(repoRoot, info, {
+      remote: opts.remote,
+      noCheckout: !opts.checkout,
+      log: (m) => logErr(pc.dim(`  ${m}`)),
+    });
+    base = opts.base ?? res.base;
+    logErr(pc.green(`Checked out change ${change} (${res.headSha.slice(0, 8)}); diff base = ${base}.`));
+  } catch (err) {
+    logErr(pc.red((err as Error).message));
+    process.exitCode = 1;
+    return;
+  }
+
+  // 3. Delegate to the standard review pipeline (handles reindex / freshness /
+  //    context build / dimensions / verifier / aggregator / output / posting).
+  await cmdReview({
+    base,
+    only: opts.only,
+    failOn: opts.failOn,
+    format: opts.format,
+    out: opts.out,
+    post: opts.post,
+    summaryOnly: opts.summaryOnly,
+    change: String(info.number || change),
+    dryRun: opts.dryRun,
+    reindex: opts.reindex,
+    incremental: opts.incremental,
+  });
+}
+
 interface PostOpts {
   post: string;
   summaryOnly?: boolean;
@@ -666,6 +786,30 @@ export async function run(argv: string[]): Promise<void> {
     .option("--reindex", "Incrementally refresh the codebase index before reviewing (fresh context)")
     .option("--incremental", "Review only commits pushed since the last review of this target (PR-update mode)")
     .action(cmdReview);
+
+  program
+    .command("review-change")
+    .description(
+      "One-command Gerrit review: fetch a change, refresh the index, review, and output",
+    )
+    .argument("<change>", "Gerrit change number or Change-Id (e.g. 10132156)")
+    .option("--repo <path>", "Path to the local checkout of the Gerrit project (default: cwd)")
+    .option("--remote <name>", "Git remote to fetch from", "origin")
+    .option("--patchset <n>", "Specific patchset number (default: latest)")
+    .option("--base <ref>", "Override the diff base (default: <remote>/<target-branch>)")
+    .option("--ref <ref>", "Skip the Gerrit API: fetch this ref directly (needs --branch)")
+    .option("--branch <name>", "Target branch for --ref mode (used as diff base)")
+    .option("--no-checkout", "Fetch but do not checkout (advanced)")
+    .option("--no-reindex", "Do not refresh the codebase index before reviewing")
+    .option("--only <categories>", "Comma-separated dimensions (e.g. concurrency,memory)")
+    .option("--fail-on <severity>", `Exit non-zero if a finding >= severity (${SEVERITIES.join("|")}|none)`, "none")
+    .option("--format <fmt>", "Output format: md|json|sarif|all", "md")
+    .option("--out <dir>", "Write report(s) to a directory instead of stdout")
+    .option("--post <sink>", "After reviewing, post findings to a sink: gerrit | github")
+    .option("--summary-only", "When posting, only post a summary comment (no inline)")
+    .option("--incremental", "Review only commits pushed since the last review of this change")
+    .option("--dry-run", "Fetch + checkout + assemble prompts; do NOT call the LLM")
+    .action(cmdReviewChange);
 
   program
     .command("post")
