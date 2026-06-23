@@ -18,6 +18,11 @@ export class OpenAICompatEmbeddingProvider implements EmbeddingProvider {
 
   async embed(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
+    // Empty / whitespace-only inputs make some backends (e.g. bge-m3 behind an
+    // OpenAI-compat gateway) emit an all-zero vector that NaNs on L2 normalize,
+    // which then fails server-side JSON encoding. Substitute a tiny placeholder
+    // so the request never carries an empty string.
+    const input = texts.map((t) => (t && t.trim().length > 0 ? t : "(empty)"));
     const res = await fetchWithRetry(
       `${this.baseUrl}/embeddings`,
       {
@@ -26,7 +31,7 @@ export class OpenAICompatEmbeddingProvider implements EmbeddingProvider {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({ model: this.model, input: texts }),
+        body: JSON.stringify({ model: this.model, input }),
       },
       { timeoutMs: 60_000, retries: 4 },
     );

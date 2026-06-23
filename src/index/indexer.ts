@@ -184,9 +184,32 @@ export async function buildIndex(
     if (chunksToEmbed.length > 0) {
       log(`Embedding ${chunksToEmbed.length} chunk(s) with ${cfg.embedModel}...`);
       const provider = new OpenAICompatEmbeddingProvider(cfg);
+      // Resilient embedding: if a batch fails (e.g. the backend chokes on one
+      // pathological chunk and returns 500), binary-split it to isolate the
+      // offending chunk(s). A single chunk that still fails gets a zero vector
+      // (cosine treats it as a non-match) so one bad input can't abort the
+      // whole index.
+      const zero = () => new Array(cfg.embedDim).fill(0) as number[];
+      const embedResilient = async (texts: string[]): Promise<number[][]> => {
+        try {
+          return await provider.embed(texts);
+        } catch (err) {
+          if (texts.length <= 1) {
+            log(
+              `  warning: embedding failed for 1 chunk; using zero vector ` +
+                `(${(err as Error).message.slice(0, 120)})`,
+            );
+            return texts.map(() => zero());
+          }
+          const mid = Math.floor(texts.length / 2);
+          const left = await embedResilient(texts.slice(0, mid));
+          const right = await embedResilient(texts.slice(mid));
+          return [...left, ...right];
+        }
+      };
       for (let i = 0; i < chunksToEmbed.length; i += EMBED_BATCH) {
         const batch = chunksToEmbed.slice(i, i + EMBED_BATCH);
-        const embedded = await provider.embed(batch.map((c) => c.text));
+        const embedded = await embedResilient(batch.map((c) => c.text));
         for (let j = 0; j < batch.length; j++) {
           vectors.push({ id: batch[j].id, vector: embedded[j] });
         }

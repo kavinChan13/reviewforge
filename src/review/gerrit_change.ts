@@ -163,15 +163,19 @@ export async function checkoutChange(
   const localBranch = `reviewforge/change-${info.number}-ps${info.patchset}`;
   if (!opts.noCheckout) {
     log(`Checking out patchset as ${localBranch}...`);
-    await git(repoRoot, ["checkout", "-B", localBranch, "FETCH_HEAD"]);
+    // Check out the captured patchset sha, NOT FETCH_HEAD: the target-branch
+    // fetch above overwrites FETCH_HEAD with the branch tip, so using it here
+    // would silently check out the branch instead of the change (empty diff).
+    await git(repoRoot, ["checkout", "-B", localBranch, headSha]);
   }
 
-  // Prefer the freshly fetched remote-tracking ref; fall back to FETCH_HEAD.
+  // Prefer the freshly fetched remote-tracking ref; fall back to the patchset's
+  // first parent (the change's own base) when the remote branch isn't available.
   let base = `${remote}/${info.branch}`;
   try {
     await git(repoRoot, ["rev-parse", "--verify", `${base}^{commit}`]);
   } catch {
-    base = "FETCH_HEAD~1";
+    base = `${headSha}~1`;
     log(`Falling back to base ${base} (remote branch not available).`);
   }
 
