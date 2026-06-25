@@ -16,12 +16,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![SARIF](https://img.shields.io/badge/output-SARIF%202.1.0-8A2BE2.svg)](https://sarifweb.azurewebsites.net/)
 [![Status](https://img.shields.io/badge/status-runnable-brightgreen.svg)](#-评测结果可复现)
+[![源码解析](https://img.shields.io/badge/📖_源码解析-在线阅读-FF6C37.svg)](https://kavinchan13.github.io/reviewforge/)
 
 </p>
 
 <h4>
 
-[快速开始](#-快速开始) · [CI / GitHub Actions](#ci-github-actions) · [核心特性](#-核心特性) · [系统架构](#-系统架构) · [评测结果](#-评测结果可复现) · [文档](#-文档) · [路线图](#-路线图)
+[📖 源码解析（在线书）](https://kavinchan13.github.io/reviewforge/) · [快速开始](#-快速开始) · [CI / GitHub Actions](#ci-github-actions) · [核心特性](#-核心特性) · [系统架构](#-系统架构) · [评测结果](#-评测结果可复现) · [文档](#-文档) · [路线图](#-路线图)
 
 </h4>
 
