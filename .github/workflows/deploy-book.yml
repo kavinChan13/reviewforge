@@ -8,6 +8,7 @@ name: Deploy Book to GitHub Pages
 # 一次性设置（仓库 admin，仅首次）：
 #   Settings → Pages → Build and deployment → Source 选 "GitHub Actions"。
 #   （内置 GITHUB_TOKEN 无权自动开启 Pages，故首次需手动选一次；之后全自动。）
+#   Pages source 已设为 "GitHub Actions"。
 
 on:
   push:
