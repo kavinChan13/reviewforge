@@ -1,7 +1,15 @@
 name: Deploy Book to GitHub Pages
 
 # 构建 book/ 下的 VitePress «ReviewForge 源码解析» 并发布到 GitHub Pages。
-# 前置：仓库 Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"。
+#
+# 采用「分支发布」方式：把构建产物推送到 gh-pages 分支，由 Pages 从该分支提供服务。
+# 这样可以绕开 configure-pages 的「创建 Pages 站点」API —— 内置 GITHUB_TOKEN 无权
+# 创建/启用 Pages（会报 "Resource not accessible by integration"），分支发布只需
+# contents: write 即可。
+#
+# 一次性设置（仓库 admin，仅首次）：
+#   Settings → Pages → Build and deployment → Source 选 "Deploy from a branch"，
+#   分支选 gh-pages、目录选 / (root)。之后每次推 book/ 都会自动更新站点。
 
 on:
   push:
@@ -12,49 +20,36 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write # 推送 gh-pages 分支
 
-# 只允许一个并发部署；不取消正在进行的部署，确保上线完整。
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-book
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: book
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install dependencies
         run: npm install
+        working-directory: book
+
       - name: Build with VitePress
         run: npm run build
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          # 首次部署时自动启用 Pages（需要 workflow 的 pages: write 权限）。
-          enablement: true
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: book/.vitepress/dist
+        working-directory: book
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./book/.vitepress/dist
+          # 纯静态站点，关闭 Jekyll（自动写入 .nojekyll）。
+          force_orphan: true
