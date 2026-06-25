@@ -54,41 +54,26 @@ sequenceDiagram
     autonumber
     participant U as 用户
     participant CLI as cmdReview
-    participant CFG as config / providers
-    participant IDX as index/store
-    participant INC as review/incremental
-    participant CTX as review/context_builder
-    participant G as agent/orchestrator
-    participant OUT as report/*
-    participant SINK as report/sinks
+    participant PRE as 准备阶段<br/>(config/providers·index·memory)
+    participant GRAPH as 状态图<br/>(orchestrator)
+    participant OUT as 输出·回贴·门禁
 
-    U->>CLI: rf review --base main --format all --out review-out
-    CLI->>CFG: loadConfig() + buildChatProvider()（fallback+cache）
-    CLI->>CLI: 校验 chat provider 已配置（否则提示 --dry-run）
-    opt --reindex
-        CLI->>IDX: buildIndex()（增量刷新）
-    end
-    CLI->>IDX: CodebaseIndex.load()（若存在）
-    CLI->>CFG: LongTermMemory.load()
+    U->>CLI: rf review --base main --format all --out
+    CLI->>PRE: loadConfig + buildChatProvider(fallback+cache)
+    CLI->>PRE: (可选 --reindex) 增量刷新索引；加载索引 + 长期记忆
     opt --incremental
-        CLI->>INC: planIncrementalReview() → 仅审新提交
+        CLI->>PRE: planIncrementalReview() → 仅审新提交
     end
-    CLI->>CTX: buildReviewContext(diffOpts)
+    CLI->>PRE: buildReviewContext(diff)
     alt 无改动
-        CTX-->>CLI: regions 为空 → 提前返回
+        PRE-->>CLI: regions 为空 → 提前返回
     end
-    CLI->>IDX: assessIndexFreshness()（陈旧则告警）
-    CLI->>G: runReviewGraph()（状态图执行）
-    G-->>CLI: state.findings + usage + trace
-    CLI->>CLI: 落盘 last-review.json + traces/<run>.jsonl
-    opt RF_TRACE_ENDPOINT
-        CLI->>CLI: exportTrace()（best-effort）
-    end
-    CLI->>OUT: renderMarkdown / renderJson / renderSarif → 写文件或 stdout
-    opt --post github|gerrit
-        CLI->>SINK: buildSink().post(findings)
-    end
-    CLI->>CLI: computeExitCode(--fail-on) → process.exitCode
+    PRE-->>CLI: ReviewContext（+ 索引陈旧则告警）
+    CLI->>GRAPH: runReviewGraph()
+    GRAPH-->>CLI: findings + usage + trace
+    CLI->>CLI: 落盘 last-review.json + trace（可选上报）
+    CLI->>OUT: 渲染 md/json/sarif；(可选)回贴 GitHub/Gerrit
+    OUT-->>CLI: computeExitCode(--fail-on) → 退出码
 ```
 
 下面拆开几个关键阶段。
