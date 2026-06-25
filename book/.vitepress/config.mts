@@ -16,6 +16,14 @@ export default withMermaid(
     cleanUrls: true,
     ignoreDeadLinks: true,
 
+    // 让较宽的 mermaid 图（尤其是参与者多的时序图）按自然尺寸渲染、超宽时横向滚动，
+    // 而不是被压缩到正文宽度导致文字看不清；时序图长标签自动换行进一步收窄宽度。
+    mermaid: {
+      sequence: { useMaxWidth: false, wrap: true },
+      flowchart: { useMaxWidth: false, htmlLabels: true },
+    },
+    mermaidPlugin: { class: "mermaid" },
+
     themeConfig: {
       nav: [
         { text: "首页", link: "/" },

@@ -1,0 +1,29 @@
+/*
+ * 优化 mermaid 图的可读性。
+ *
+ * 默认情况下 VitePress 会把 mermaid SVG 限制为正文宽度（max-width:100%），
+ * 参与者多的时序图因此被整体缩小、文字看不清。配合 config 里的
+ * mermaid.useMaxWidth:false（按自然尺寸渲染），这里让图所在容器在超宽时
+ * 横向滚动，并居中较窄的图——既保持文字清晰，又不破坏排版。
+ */
+.vp-doc .mermaid {
+  overflow-x: auto;
+  margin: 20px 0;
+  text-align: center;
+}
+
+/* 自然尺寸渲染：不再被压缩到容器宽度。 */
+.vp-doc .mermaid svg {
+  max-width: none !important;
+  height: auto;
+  /* 略微提升对比，方便在浅/深色主题下都看清连线。 */
+}
+
+/* 细长滚动条，避免遮挡图形底部。 */
+.vp-doc .mermaid::-webkit-scrollbar {
+  height: 8px;
+}
+.vp-doc .mermaid::-webkit-scrollbar-thumb {
+  background: var(--vp-c-divider);
+  border-radius: 4px;
+}
