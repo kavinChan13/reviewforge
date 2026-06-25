@@ -1,0 +1,17 @@
+{
+  "name": "reviewforge-book",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ReviewForge 源码解析 — 一个生产级 AI 代码审查 Agent 的逐模块深度拆解",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "mermaid": "^11.4.0",
+    "vitepress": "^1.5.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}
