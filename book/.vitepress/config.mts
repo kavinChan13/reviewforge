@@ -16,10 +16,10 @@ export default withMermaid(
     cleanUrls: true,
     ignoreDeadLinks: true,
 
-    // mermaid 图适配正文宽度（不横向滚动）。时序图开启 wrap 让长标签自动换行，
-    // 配合精简后的参与者数量，确保在正文宽度下文字依然清晰。
+    // 图在正文中按宽度自适应显示（整洁、不横向滚动）；看大图时点击图即可
+    // 弹出全屏，支持滚轮缩放 / 拖拽平移（见 theme/mermaidZoom.ts）。
     mermaid: {
-      sequence: { useMaxWidth: true, wrap: true },
+      sequence: { useMaxWidth: true },
       flowchart: { useMaxWidth: true, htmlLabels: true },
     },
     mermaidPlugin: { class: "mermaid" },

@@ -1,23 +1,94 @@
 /*
- * mermaid 图样式微调。
- *
- * 图默认适配正文宽度（config 中 useMaxWidth:true），这里只做居中与
- * 间距处理；并保留 overflow-x:auto 作为极端宽图的兜底（正常情况下不触发）。
+ * mermaid 图：正文中按宽度自适应（整洁），点击弹出全屏可缩放/平移。
  */
 .vp-doc .mermaid {
   margin: 20px 0;
   text-align: center;
-  overflow-x: auto;
+  cursor: zoom-in;
 }
 
 .vp-doc .mermaid svg {
   height: auto;
 }
 
-.vp-doc .mermaid::-webkit-scrollbar {
-  height: 8px;
+/* ===== 点击放大：全屏遮罩 ===== */
+.mermaid-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(2px);
+  animation: mermaid-zoom-fade 0.12s ease-out;
 }
-.vp-doc .mermaid::-webkit-scrollbar-thumb {
-  background: var(--vp-c-divider);
-  border-radius: 4px;
+
+@keyframes mermaid-zoom-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mermaid-zoom-inner {
+  width: 94vw;
+  height: 88vh;
+  background: var(--vp-c-bg);
+  border-radius: 10px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  cursor: grab;
+}
+
+/* 遮罩内的图填满容器，取消正文里的居中/缩小限制 */
+.mermaid-zoom-inner .mermaid {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.mermaid-zoom-inner .mermaid svg {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.mermaid-zoom-hint {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 13px;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.mermaid-zoom-close {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mermaid-zoom-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* svg-pan-zoom 自带的 +/−/复位控件配色微调 */
+.mermaid-zoom-inner svg .svg-pan-zoom-control {
+  opacity: 0.85;
 }

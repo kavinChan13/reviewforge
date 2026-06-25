@@ -115,26 +115,32 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     autonumber
-    participant ORCH as 编排器
-    participant NODE as 维度子Agent<br/>(concurrency)
+    participant ORCH as Orchestrator
+    participant NODE as dim:concurrency（runAgentLoop）
     participant LLM as Chat LLM
-    participant TOOLS as 只读工具层<br/>(符号图·clang-tidy·RAG)
-    participant POST as 验证者 → 聚合器
+    participant SYM as 符号图
+    participant SA as clang-tidy 信号
+    participant VEC as 向量 RAG
+    participant VER as 验证者
+    participant AGG as 聚合器
 
-    ORCH->>NODE: 选中维度→建节点；注入 system(focus+语言增强)/user
-    loop tool-calling ≤ 8
+    Note over ORCH: Triage 选中 concurrency → 建 layer-1 节点
+    ORCH->>NODE: system=focus+lang_guidance(cpp 并发)<br/>user=diff+符号正文/调用者+静态信号+few-shot
+    loop tool-calling ≤ maxIter=8
         NODE->>LLM: 消息 + 工具规格
-        LLM-->>NODE: 请求取证（toolCalls）
-        NODE->>TOOLS: find_references / get_static_analysis / semantic_search
-        TOOLS-->>NODE: 调用关系 / 静态命中 / 语义近邻
+        LLM-->>NODE: toolCalls（取证）
+        NODE->>SYM: find_references(共享变量/锁)
+        NODE->>SA: get_static_analysis(file)
+        NODE->>VEC: semantic_search(同步模式)
         NODE->>LLM: 喂回结果继续推理
     end
     LLM-->>NODE: 无 tool_use → JSON findings
     Note over NODE: 硬约束：须同时证明<br/>(a)触及共享状态 (b)削弱了同步
     NODE-->>ORCH: RawFinding[]（evidence + confidence）
-    ORCH->>POST: 验证者对照 diff 复核（剔幻觉/降置信）
-    POST->>POST: 聚合：阈值 + 抑制 + 5 行去重 + 排序
-    POST-->>ORCH: 最终 finding → md/json/sarif + 门禁
+    ORCH->>VER: 存在候选 → 对照 diff 复核（剔除幻觉/下调置信）
+    VER->>AGG: 复核后集合
+    AGG->>AGG: 阈值 + 抑制 + 5 行去重 + 排序
+    AGG-->>ORCH: 最终 finding → md/json/sarif + 门禁
 ```
 
 这条链上「**非纯 prompt**」的关键点：`find_references` 走 tree-sitter 符号图（精确调用关系，非 grep）、clang-tidy 命中作为结构化事实信号交叉印证、`semantic_search` 是向量 RAG，产出后还有验证者复核与聚合器抑制/去重两道关——这正是 ReviewForge 区别于「把 diff 丢给 LLM」的本质所在。
